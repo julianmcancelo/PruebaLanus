@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  pdf_db:
+    image: postgres:16-alpine
+    container_name: pdf_db
+    restart: always
+    environment:
+      POSTGRES_USER: pdf_admin
+      POSTGRES_PASSWORD: pdf_secure_pass_2026
+      POSTGRES_DB: pdf_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pdf_postgres_data:/var/lib/postgresql/data
+
+  pdf_backend:
+    build: ./backend
+    container_name: pdf_backend
+    restart: always
+    environment:
+      DATABASE_URL: postgresql://pdf_admin:pdf_secure_pass_2026@pdf_db:5432/pdf_db?schema=public
+      PORT: 3001
+    ports:
+      - "3001:3001"
+    depends_on:
+      - pdf_db
+
+  pdf_frontend:
+    build: .
+    container_name: pdf_frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - pdf_backend
+
+  adminer:
+    image: adminer
+    container_name: pdf_adminer
+    restart: always
+    ports:
+      - "8080:8080"
+    depends_on:
+      - pdf_db
+
+volumes:
+  pdf_postgres_data:

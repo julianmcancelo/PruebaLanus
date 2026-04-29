@@ -1,0 +1,88 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Personas {
+  id            Int      @id @default(autoincrement())
+  idNumber      String   @unique
+  surname       String
+  names         String
+  birthDate     String?
+  gender        String?
+  nationality   String?
+  processNumber String?
+  address       String?
+  city          String?
+  province      String?
+  photo         String?  // Base64
+  timestamp     BigInt
+  createdAt     DateTime @default(now())
+}
+
+model Titulos {
+  id               Int      @id @default(autoincrement())
+  dominio          String   @unique
+  titular          String?
+  cuilTitular      String?
+  marca            String?
+  modelo           String?
+  tipo             String?
+  anioModelo       String?
+  fechaInscripcion String?
+  motor            String?
+  chasis           String?
+  tramite          String?
+  controlWeb       String?
+  // Additional fields from Dexie
+  domicilio        String?
+  localidad        String?
+  provincia        String?
+  registroSeccional String?
+  nroControl       String?
+  timestamp        BigInt
+}
+
+model Habilitaciones {
+  id             Int      @id @default(autoincrement())
+  idPersona      String?
+  idChofer       String?
+  idCelador      String?
+  titular        String?
+  idNumber       String?
+  address        String?
+  locality       String?
+  dominio        String?
+  nroExpediente  String?
+  nroLicencia    String?
+  email          String?
+  phone          String?
+  // Possible extras
+  tipoHabilitacion String?
+  timestamp      BigInt
+}
+
+model Colegios {
+  id              Int      @id @default(autoincrement())
+  nombre          String   @unique
+  idNumberTitular String?
+  dominio         String?
+  domicilio       String?
+  lat             Float?
+  lng             Float?
+  timestamp       BigInt
+}
+
+model Inspecciones {
+  id            Int      @id @default(autoincrement())
+  dominio       String?
+  fecha         String?
+  resultado     String?
+  observaciones String?
+  checklist     Json?
+  timestamp     BigInt
+}
