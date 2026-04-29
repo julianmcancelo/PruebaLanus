@@ -1,4 +1,4 @@
-# PDF Platform - Portable Version
+# Lanus Digital - Plataforma de Gestión
 
 Este repositorio contiene la plataforma completa de gestión de PDFs y registros, aislada y lista para ser desplegada en cualquier PC con Docker.
 

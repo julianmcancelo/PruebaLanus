@@ -510,7 +510,7 @@ const linkSchoolToHab = async (schoolId: number, habId: number) => {
     <aside class="sidebar glass-card">
       <div class="logo">
         <div class="logo-icon"><Database :size="24" /></div>
-        <span>PDF Platform</span>
+        <span>Lanus Digital</span>
       </div>
       
       <nav class="sidebar-nav">
