@@ -235,28 +235,43 @@ const handleInspeccionAdded = async (data: any) => {
 };
 
 const deletePerson = async (id: string) => {
-  await deletePersonById(id);
-  await loadData();
+  if (!id || !confirm('¿Eliminar esta persona?')) return;
+  try {
+    await deletePersonById(id);
+    await loadData();
+  } catch (e) { console.error('Error deleting person:', e); alert('Error al eliminar'); }
 };
 
 const deleteTitle = async (id: string) => {
-  await deleteTitleById(id);
-  await loadData();
+  if (!id || !confirm('¿Eliminar este título?')) return;
+  try {
+    await deleteTitleById(id);
+    await loadData();
+  } catch (e) { console.error('Error deleting title:', e); alert('Error al eliminar'); }
 };
 
 const deleteHabilitacion = async (id: string) => {
-  await deleteHabilitacionById(id);
-  await loadData();
+  if (!id || !confirm('¿Eliminar esta habilitación?')) return;
+  try {
+    await deleteHabilitacionById(id);
+    await loadData();
+  } catch (e) { console.error('Error deleting habilitacion:', e); alert('Error al eliminar'); }
 };
 
 const deleteSchool = async (id: string) => {
-  await deleteSchoolById(id);
-  await loadData();
+  if (!id || !confirm('¿Eliminar este colegio?')) return;
+  try {
+    await deleteSchoolById(id);
+    await loadData();
+  } catch (e) { console.error('Error deleting school:', e); alert('Error al eliminar'); }
 };
 
 const deleteInspeccion = async (id: string) => {
-  await deleteInspeccionById(id);
-  await loadData();
+  if (!id || !confirm('¿Eliminar esta inspección?')) return;
+  try {
+    await deleteInspeccionById(id);
+    await loadData();
+  } catch (e) { console.error('Error deleting inspection:', e); alert('Error al eliminar'); }
 };
 
 const viewDetails = (person: any) => selectedPerson.value = person;

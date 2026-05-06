@@ -65,7 +65,7 @@ defineEmits(['delete', 'view']);
               <button class="action-btn view" title="Ver detalles" @click="$emit('view', person)">
                 <ExternalLink :size="18" />
               </button>
-              <button class="action-btn delete" @click="$emit('delete', person.idNumber)" title="Eliminar">
+              <button class="action-btn delete" @click="$emit('delete', person.id)" title="Eliminar">
                 <Trash2 :size="18" />
               </button>
             </div>
