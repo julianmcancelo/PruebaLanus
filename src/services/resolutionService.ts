@@ -17,14 +17,25 @@ export async function generateResolutionDOCX(type: 'escolar' | 'remis', data: an
     });
 
     // Determine gender (M/F)
-    const gender = data.person?.gender?.toUpperCase() || 'M';
+    let gender = data.person?.gender?.toUpperCase();
+    
+    // Simple heuristic if gender is missing: check if names end in 'A'
+    if (!gender && data.hab?.titular) {
+      const firstName = data.hab.titular.trim().split(' ').pop() || '';
+      gender = firstName.endsWith('A') ? 'F' : 'M';
+    } else if (!gender) {
+      gender = 'M';
+    }
+
     const isFemale = gender === 'F';
+    const tratamiento = isFemale ? 'la Sra.' : 'el Sr.';
 
     // Process data for template
     const templateData = {
       expediente_nro: data.hab?.nroExpediente || '---',
-      tratamiento: isFemale ? 'la Sra.' : 'el Sr.',
+      tratamiento: tratamiento,
       titular_nombre: data.person ? `${data.person.surname}, ${data.person.names}` : (data.hab?.titular || '---'),
+      titular_con_tratamiento: `${tratamiento} ${data.person ? `${data.person.surname}, ${data.person.names}` : (data.hab?.titular || '---')}`,
       titular_dni: data.person?.idNumber || data.hab?.idNumber || '---',
       titular_domicilio_calle: data.person?.address || data.hab?.address || '---',
       titular_domicilio_localidad: data.person?.city || data.hab?.locality || 'LANÚS',
@@ -34,7 +45,7 @@ export async function generateResolutionDOCX(type: 'escolar' | 'remis', data: an
       vehiculo_tipo: data.title?.tipo || '---',
       vehiculo_dominio: data.hab?.dominio || '---',
       licencia_nro: data.hab?.nroLicencia || '---',
-      propiedad_de: 'su propiedad', // Both genders usually use "su propiedad" in this context
+      propiedad_de: isFemale ? 'de su propiedad, la Sra.' : 'de su propiedad, el Sr.',
       domiciliada: isFemale ? 'domiciliada' : 'domiciliado',
       vehiculo_anho: data.title?.anioModelo || '---',
       vehiculo_anho_short: (data.title?.anioModelo || '').toString().slice(-2),

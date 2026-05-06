@@ -55,15 +55,24 @@ const handleEnrich = async () => {
 };
 
 const getHabilitacionesForSchool = () => {
-  return props.habilitaciones.filter(h => h.idColegios?.includes(props.school.id));
+  if (!props.school?.id) return [];
+  const strId = String(props.school.id);
+  return props.habilitaciones.filter(h => 
+    h.idColegios?.some((id: any) => String(id) === strId)
+  );
 };
 
 const getPersonForHab = (hab: any) => {
-  return props.people.find(p => p.id === hab.idPersona);
+  return props.people.find(p => String(p.id) === String(hab.idPersona));
 };
 
 const getTitleForHab = (hab: any) => {
-  return props.titles.find(t => t.dominio === hab.dominio);
+  if (!hab.dominio) return null;
+  const cleanDom = hab.dominio.replace(/\W/g, '').toUpperCase();
+  return props.titles.find(t => {
+    if (!t.dominio) return false;
+    return t.dominio.replace(/\W/g, '').toUpperCase() === cleanDom;
+  });
 };
 </script>
 
@@ -152,42 +161,48 @@ const getTitleForHab = (hab: any) => {
         </div>
 
         <div class="hab-grid">
-          <div v-for="hab in getHabilitacionesForSchool()" :key="hab.id" class="hab-card glass-card">
-            <div class="hab-header">
-              <div class="domain-badge">{{ hab.dominio }}</div>
-              <div class="hab-actions">
-                <button class="mini-btn" title="Ver Detalles" @click="$emit('view-hab', hab)">
-                  <Eye :size="14" />
-                </button>
+          <div v-for="hab in getHabilitacionesForSchool()" :key="hab.id" class="hab-card-premium animate-fade">
+            <div class="hab-card-header">
+              <div class="hab-badge-main">
+                <Car :size="18" />
+                <span>{{ hab.dominio }}</span>
               </div>
-            </div>
-
-            <div class="hab-info">
-              <div class="info-row">
-                <User :size="14" />
-                <span>{{ hab.titular }}</span>
-              </div>
-              <div class="info-row">
-                <Hash :size="14" />
-                <span>Expte: {{ hab.nroExpediente || 'S/D' }}</span>
-              </div>
-            </div>
-
-            <div class="hab-footer">
-              <button class="btn btn-primary btn-sm" @click="$emit('generate-resolution', hab)">
-                <FileSignature :size="14" /> Resolución
+              <button class="view-details-btn" @click="$emit('view-hab', hab)">
+                <Eye :size="16" />
               </button>
-              <div class="dropdown">
-                <button class="btn btn-secondary btn-sm">
-                  <Printer :size="14" /> Planilla
+            </div>
+
+            <div class="hab-card-content">
+              <div class="hab-main-info">
+                <div class="hab-titular">
+                  <User :size="14" />
+                  <span>{{ hab.titular }}</span>
+                </div>
+                <div class="hab-expte">
+                  <Hash :size="14" />
+                  <span>Expte: {{ hab.nroExpediente || 'S/D' }}</span>
+                </div>
+              </div>
+
+              <div class="hab-actions-row">
+                <button class="btn-action-primary" @click="$emit('generate-resolution', hab)">
+                  <FileSignature :size="16" />
+                  <span>Resolución</span>
                 </button>
-                <div class="dropdown-content">
-                  <button @click="$emit('print-inspection', hab)">
-                    <ClipboardCheck :size="14" /> PDF Simple
+                
+                <div class="action-dropdown-container">
+                  <button class="btn-action-secondary">
+                    <Printer :size="16" />
+                    <span>Planilla</span>
                   </button>
-                  <button @click="$emit('print-inspection-excel', hab)">
-                    <FileSpreadsheet :size="14" /> Excel Oficial
-                  </button>
+                  <div class="action-dropdown-menu">
+                    <button @click="$emit('print-inspection', hab)">
+                      <ClipboardCheck :size="14" /> PDF Simple
+                    </button>
+                    <button @click="$emit('print-inspection-excel', hab)">
+                      <FileSpreadsheet :size="14" /> Excel Oficial
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -202,8 +217,8 @@ const getTitleForHab = (hab: any) => {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.4);
-  backdrop-filter: blur(4px);
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -213,335 +228,380 @@ const getTitleForHab = (hab: any) => {
 
 .modal-content {
   width: 100%;
-  max-width: 900px;
-  max-height: 92vh;
-  background: white;
-  border: 1px solid var(--border-light);
+  max-width: 950px;
+  max-height: 90vh;
+  background: #f8fafc;
+  border-radius: 28px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
 .modal-header {
-  padding: 32px;
-  border-bottom: 1px solid var(--border-light);
+  padding: 40px;
+  background: white;
+  border-bottom: 1px solid #e2e8f0;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: white;
 }
 
 .school-title {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 24px;
 }
 
 .school-icon {
-  background: var(--primary);
-  padding: 14px;
-  border-radius: 14px;
+  background: linear-gradient(135deg, #4f46e5, #6366f1);
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   color: white;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+  box-shadow: 0 8px 16px rgba(79, 70, 229, 0.2);
 }
 
 .school-title h2 {
-  margin: 0;
-  font-size: 1.6rem;
-  color: var(--text-main);
+  font-size: 1.8rem;
   font-weight: 800;
-  letter-spacing: -0.02em;
+  color: #0f172a;
+  letter-spacing: -0.03em;
+  margin: 0;
 }
 
 .title-with-action {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
 
 .enrich-btn {
-  background: rgba(79, 70, 229, 0.05);
-  border: 1px solid rgba(79, 70, 229, 0.1);
-  color: var(--primary);
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-size: 0.8rem;
+  background: rgba(79, 70, 229, 0.08);
+  border: 1px solid rgba(79, 70, 229, 0.15);
+  color: #4f46e5;
+  padding: 8px 16px;
+  border-radius: 12px;
+  font-size: 0.85rem;
   font-weight: 700;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
-  transition: all 0.2s;
+  gap: 8px;
+  transition: all 0.3s;
 }
 
-.enrich-btn:hover:not(:disabled) {
-  background: var(--primary);
+.enrich-btn:hover {
+  background: #4f46e5;
   color: white;
-  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
-}
-
-.enrich-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.spin { animation: rotate 1s linear infinite; }
-@keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-
-.close-btn {
-  background: #f1f5f9;
-  border: none;
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: 10px;
-  border-radius: 12px;
-  transition: all 0.2s;
-}
-
-.close-btn:hover {
-  background: #e2e8f0;
-  color: var(--text-main);
-}
-
-.modal-body {
-  padding: 32px;
-  overflow-y: auto;
-  flex: 1;
-  background: #f8fafc;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px -5px rgba(79, 70, 229, 0.4);
 }
 
 .address-edit-group {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 10px;
-  background: white;
-  padding: 6px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--border-light);
+  gap: 10px;
+  margin-top: 12px;
+  background: #f1f5f9;
+  padding: 10px 18px;
+  border-radius: 14px;
+  border: 1px solid transparent;
   transition: all 0.2s;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  width: fit-content;
+  min-width: 400px;
 }
 
 .address-edit-group:focus-within {
-  border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  background: white;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
 }
-
-.pin-icon { color: var(--primary); }
 
 .address-input {
   background: none;
   border: none;
-  color: var(--text-main);
   font-size: 0.95rem;
   font-weight: 600;
+  color: #334155;
   width: 100%;
   outline: none;
 }
 
-.save-mini-btn {
-  background: var(--primary);
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 6px;
-  cursor: pointer;
-  display: flex;
-  transition: all 0.2s;
+.modal-body {
+  padding: 40px;
+  overflow-y: auto;
+  flex: 1;
 }
 
 .top-layout {
   display: grid;
-  grid-template-columns: 1fr 300px;
-  gap: 24px;
-  margin-bottom: 32px;
-}
-
-.map-container {
-  height: 120px;
-  border-radius: 14px;
-  overflow: hidden;
-  position: relative;
-  border: 1px solid var(--border-light);
-  background: white;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-}
-
-.no-map {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: var(--text-muted);
-  gap: 8px;
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
+  grid-template-columns: 1fr 340px;
+  gap: 32px;
+  margin-bottom: 40px;
 }
 
 .stat-card {
   background: white;
-  padding: 24px;
-  border-radius: 16px;
-  text-align: center;
-  border: 1px solid var(--border-light);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  padding: 28px;
+  border-radius: 24px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02);
+  transition: all 0.3s;
+}
+
+.stat-card:hover {
+  transform: translateY(-4px);
+  border-color: #4f46e5;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05);
 }
 
 .stat-value {
-  font-size: 2.2rem;
-  font-weight: 800;
-  color: var(--primary);
-  letter-spacing: -0.02em;
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: #4f46e5;
+  line-height: 1;
 }
 
-.stat-label {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin-top: 4px;
+.map-container {
+  height: 140px;
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  background: white;
 }
 
 .section-title {
-  margin-bottom: 24px;
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 20px;
+  margin-bottom: 32px;
 }
 
 .section-title h3 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #1e293b;
   margin: 0;
-  font-size: 1.1rem;
-  color: var(--text-main);
-  font-weight: 700;
+  white-space: nowrap;
 }
 
 .title-line {
   height: 2px;
-  flex: 1;
-  background: var(--border-light);
-  border-radius: 2px;
+  width: 100%;
+  background: linear-gradient(to right, #e2e8f0, transparent);
 }
 
+/* CARDS PREMIUM */
 .hab-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 24px;
 }
 
-.hab-card {
-  padding: 24px;
+.hab-card-premium {
   background: white;
-  border-radius: 16px;
-  border: 1px solid var(--border-light);
+  border-radius: 24px;
+  border: 1px solid #e2e8f0;
+  padding: 24px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  transition: all 0.2s;
+  gap: 20px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
-.hab-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 20px -8px rgba(0,0,0,0.1);
-  border-color: var(--primary);
+.hab-card-premium:hover {
+  transform: translateY(-8px);
+  border-color: #4f46e5;
+  box-shadow: 0 20px 40px -12px rgba(79, 70, 229, 0.15);
 }
 
-.hab-header {
+.hab-card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.domain-badge {
+.hab-badge-main {
   background: #f1f5f9;
-  color: var(--text-main);
-  padding: 6px 12px;
-  border-radius: 8px;
-  font-weight: 800;
-  font-size: 0.9rem;
-  font-family: monospace;
-  border: 1px solid var(--border-light);
-}
-
-.hab-info {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.info-row {
+  padding: 8px 14px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 0.95rem;
-  color: var(--text-muted);
-  font-weight: 500;
+  font-weight: 800;
+  font-family: monospace;
+  color: #0f172a;
+  border: 1px solid #e2e8f0;
 }
 
-.info-row span {
-  color: var(--text-main);
-  font-weight: 600;
-}
-
-.hab-footer {
+.view-details-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s;
   display: flex;
-  gap: 8px;
+  align-items: center;
+  justify-content: center;
+}
+
+.view-details-btn:hover {
+  background: #0f172a;
+  color: white;
+}
+
+.hab-main-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hab-titular, .hab-expte {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #475569;
+}
+
+.hab-titular span {
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.hab-actions-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
   margin-top: 8px;
 }
 
-.btn-sm {
-  padding: 8px 12px;
+.btn-action-primary {
+  background: #4f46e5;
+  color: white;
+  border: none;
+  padding: 12px;
+  border-radius: 14px;
+  font-weight: 700;
   font-size: 0.85rem;
-  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
 }
 
-.dropdown-content {
+.btn-action-primary:hover {
+  background: #4338ca;
+  box-shadow: 0 8px 16px rgba(79, 70, 229, 0.3);
+}
+
+.btn-action-secondary {
   background: white;
-  border: 1px solid var(--border-light);
-  border-radius: 12px;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-}
-
-.dropdown-content button {
-  padding: 12px 16px;
-  color: #475569;
-  font-weight: 600;
-}
-
-.dropdown-content button:hover {
-  background: #f8fafc;
-  color: var(--primary);
-}
-
-.empty-state {
-  padding: 60px 40px;
-  background: white;
-  border-radius: 16px;
-  border: 1px dashed var(--border-light);
-}
-
-.mini-btn {
-  background: #f1f5f9;
-  border: 1px solid var(--border-light);
-  color: var(--text-muted);
-  padding: 6px;
-  border-radius: 8px;
+  color: #1e293b;
+  border: 1px solid #e2e8f0;
+  padding: 12px;
+  border-radius: 14px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  width: 100%;
   transition: all 0.2s;
 }
 
-.mini-btn:hover {
-  background: #e2e8f0;
-  color: var(--text-main);
+.action-dropdown-container {
+  position: relative;
+}
+
+.action-dropdown-menu {
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  margin-bottom: 8px;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 8px;
+  min-width: 180px;
+  display: none;
+  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+  z-index: 10;
+}
+
+.action-dropdown-container:hover .action-dropdown-menu {
+  display: block;
+}
+
+.action-dropdown-menu button {
+  width: 100%;
+  text-align: left;
+  padding: 10px 14px;
+  border: none;
+  background: none;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.2s;
+}
+
+.action-dropdown-menu button:hover {
+  background: #f1f5f9;
+  color: #4f46e5;
+}
+
+.close-btn {
+  background: #f1f5f9;
+  border: none;
+  color: #64748b;
+  padding: 12px;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.close-btn:hover {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+.empty-state {
+  padding: 80px 40px;
+  text-align: center;
+  color: #94a3b8;
+}
+
+.empty-state p {
+  margin-top: 16px;
+  font-weight: 600;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade {
+  animation: fadeIn 0.4s ease-out forwards;
 }
 </style>
+

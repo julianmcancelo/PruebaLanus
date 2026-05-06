@@ -1,5 +1,18 @@
-import axios from 'axios';
-import { API_URL } from '../config';
+import { db } from '../firebase';
+import { 
+  collection, 
+  addDoc, 
+  getDocs, 
+  getDoc, 
+  doc, 
+  deleteDoc, 
+  updateDoc, 
+  query, 
+  where, 
+  orderBy,
+  serverTimestamp,
+  setDoc
+} from 'firebase/firestore';
 import type { DniData } from './dniService';
 import Dexie, { type Table } from 'dexie';
 
@@ -26,119 +39,202 @@ export class LegacyDatabase extends Dexie {
 export const legacyDb = new LegacyDatabase();
 
 export interface PersonRecord extends DniData {
-  id?: number;
-  timestamp: number;
+  id?: string;
+  timestamp: any;
   photo?: string;
 }
 
-// API CLIENT
-const api = axios.create({ baseURL: API_URL });
+// Helper to convert Firestore snapshots to arrays
+const snapshotToArray = (snapshot: any) => {
+  return snapshot.docs.map((doc: any) => ({
+    id: doc.id,
+    ...doc.data()
+  }));
+};
 
+// PEOPLE
 export async function savePerson(person: DniData) {
-  const res = await api.post('/people', person);
-  return res.data;
+  if (!person.idNumber) {
+    console.warn('Intento de guardar persona sin DNI');
+    const docRef = await addDoc(collection(db, 'people'), { ...person, timestamp: serverTimestamp() });
+    return docRef.id;
+  }
+
+  // Check for duplicate by DNI (idNumber)
+  const q = query(collection(db, 'people'), where('idNumber', '==', person.idNumber));
+  const snapshot = await getDocs(q);
+  
+  if (!snapshot.empty) {
+    console.log('Persona duplicada detectada (DNI:', person.idNumber, '), actualizando...');
+    const existingDoc = snapshot.docs[0];
+    await updateDoc(existingDoc.ref, {
+      ...person,
+      updatedAt: serverTimestamp()
+    });
+    return existingDoc.id;
+  }
+
+  console.log('Registrando nueva persona:', person.surname);
+  const docRef = await addDoc(collection(db, 'people'), {
+    ...person,
+    timestamp: serverTimestamp()
+  });
+  return docRef.id;
 }
 
 export async function getAllPeople() {
-  const res = await api.get('/people');
-  return res.data;
+  const q = query(collection(db, 'people'), orderBy('timestamp', 'desc'));
+  const snapshot = await getDocs(q);
+  return snapshotToArray(snapshot);
 }
 
-export async function deletePersonById(idNumber: string) {
-  const res = await api.delete(`/people/${idNumber}`);
-  return res.data;
+export async function deletePersonById(id: string) {
+  await deleteDoc(doc(db, 'people', id));
 }
 
-export async function updatePerson(id: number, data: Partial<PersonRecord>) {
-  const res = await api.patch(`/people/${id}`, data);
-  return res.data;
+export async function updatePerson(id: string, data: Partial<PersonRecord>) {
+  const personRef = doc(db, 'people', id);
+  // Remove ID from data to avoid saving it as a field
+  const { id: _, ...updateData } = data;
+  await updateDoc(personRef, {
+    ...updateData,
+    updatedAt: serverTimestamp()
+  });
 }
 
-// Titles
+// TITLES
 export async function saveTitle(titleData: any) {
-  const res = await api.post('/titles', titleData);
-  return res.data;
+  // Check for duplicate by Patente (dominio)
+  if (titleData.dominio) {
+    const q = query(collection(db, 'titles'), where('dominio', '==', titleData.dominio));
+    const snapshot = await getDocs(q);
+    
+    if (!snapshot.empty) {
+      console.log('Título duplicado detectado (Dominio:', titleData.dominio, '), actualizando...');
+      const existingDoc = snapshot.docs[0];
+      await updateDoc(existingDoc.ref, {
+        ...titleData,
+        updatedAt: serverTimestamp()
+      });
+      return existingDoc.id;
+    }
+  }
+
+  console.log('Registrando nuevo título:', titleData.dominio);
+  const docRef = await addDoc(collection(db, 'titles'), {
+    ...titleData,
+    timestamp: serverTimestamp()
+  });
+  return docRef.id;
 }
 
 export async function getAllTitles() {
-  const res = await api.get('/titles');
-  return res.data;
+  const q = query(collection(db, 'titles'), orderBy('timestamp', 'desc'));
+  const snapshot = await getDocs(q);
+  return snapshotToArray(snapshot);
 }
 
-export async function deleteTitleById(id: number) {
-  const res = await api.delete(`/titles/${id}`);
-  return res.data;
+export async function deleteTitleById(id: string) {
+  await deleteDoc(doc(db, 'titles', id));
 }
 
-export async function updateTitle(id: number, data: any) {
-  const res = await api.patch(`/titles/${id}`, data);
-  return res.data;
+export async function updateTitle(id: string, data: any) {
+  const titleRef = doc(db, 'titles', id);
+  const { id: _, ...updateData } = data;
+  await updateDoc(titleRef, updateData);
 }
 
-// Habilitaciones
+// HABILITACIONES
 export async function saveHabilitacion(data: any) {
-  const res = await api.post('/habilitaciones', data);
-  return res.data;
+  const docRef = await addDoc(collection(db, 'habilitaciones'), {
+    ...data,
+    timestamp: serverTimestamp()
+  });
+  return docRef.id;
 }
 
 export async function getAllHabilitaciones() {
-  const res = await api.get('/habilitaciones');
-  return res.data;
+  const q = query(collection(db, 'habilitaciones'), orderBy('timestamp', 'desc'));
+  const snapshot = await getDocs(q);
+  return snapshotToArray(snapshot);
 }
 
-export async function deleteHabilitacionById(id: number) {
-  const res = await api.delete(`/habilitaciones/${id}`);
-  return res.data;
+export async function deleteHabilitacionById(id: string) {
+  await deleteDoc(doc(db, 'habilitaciones', id));
 }
 
-export async function updateHabilitacion(id: number, data: any) {
-  const res = await api.patch(`/habilitaciones/${id}`, data);
-  return res.data;
+export async function updateHabilitacion(id: string, data: any) {
+  const habRef = doc(db, 'habilitaciones', id);
+  const { id: _, ...updateData } = data;
+  await updateDoc(habRef, updateData);
 }
 
-// Schools
+// SCHOOLS
 export async function saveSchool(data: any) {
-  const res = await api.post('/schools', data);
-  return res.data;
+  // Check for duplicate by name
+  if (data.nombre) {
+    const q = query(collection(db, 'schools'), where('nombre', '==', data.nombre));
+    const snapshot = await getDocs(q);
+    
+    if (!snapshot.empty) {
+      const existingDoc = snapshot.docs[0];
+      await updateDoc(existingDoc.ref, {
+        ...data,
+        updatedAt: serverTimestamp()
+      });
+      return existingDoc.id;
+    }
+  }
+
+  const docRef = await addDoc(collection(db, 'schools'), {
+    ...data,
+    timestamp: serverTimestamp()
+  });
+  return docRef.id;
 }
 
 export async function getAllSchools() {
-  const res = await api.get('/schools');
-  return res.data;
+  const q = query(collection(db, 'schools'), orderBy('timestamp', 'desc'));
+  const snapshot = await getDocs(q);
+  return snapshotToArray(snapshot);
 }
 
-export async function deleteSchoolById(id: number) {
-  const res = await api.delete(`/schools/${id}`);
-  return res.data;
+export async function deleteSchoolById(id: string) {
+  await deleteDoc(doc(db, 'schools', id));
 }
 
-export async function updateSchool(id: number, data: any) {
-  const res = await api.patch(`/schools/${id}`, data);
-  return res.data;
+export async function updateSchool(id: string, data: any) {
+  const schoolRef = doc(db, 'schools', id);
+  const { id: _, ...updateData } = data;
+  await updateDoc(schoolRef, updateData);
 }
 
-// Inspecciones
+// INSPECCIONES
 export async function saveInspeccion(data: any) {
-  const res = await api.post('/inspecciones', data);
-  return res.data;
+  const docRef = await addDoc(collection(db, 'inspecciones'), {
+    ...data,
+    timestamp: serverTimestamp()
+  });
+  return docRef.id;
 }
 
 export async function getAllInspecciones() {
-  const res = await api.get('/inspecciones');
-  return res.data;
+  const q = query(collection(db, 'inspecciones'), orderBy('timestamp', 'desc'));
+  const snapshot = await getDocs(q);
+  return snapshotToArray(snapshot);
 }
 
-export async function deleteInspeccionById(id: number) {
-  const res = await api.delete(`/inspecciones/${id}`);
-  return res.data;
+export async function deleteInspeccionById(id: string) {
+  await deleteDoc(doc(db, 'inspecciones', id));
 }
 
 export async function getInspectionsByDominio(dominio: string) {
-  const res = await api.get(`/inspecciones/${dominio}`);
-  return res.data;
+  const q = query(collection(db, 'inspecciones'), where('dominio', '==', dominio));
+  const snapshot = await getDocs(q);
+  return snapshotToArray(snapshot);
 }
 
-// MIGRATION TOOL
+// MIGRATION TOOL (From Dexie to Firestore)
 export async function exportLegacyDatabase() {
   const data = {
     people: await legacyDb.people.toArray(),
@@ -150,7 +246,20 @@ export async function exportLegacyDatabase() {
   return data;
 }
 
-export async function migrateToPostgres(backupData: any) {
-  const res = await api.post('/import-backup', backupData);
-  return res.data;
+export async function migrateToFirestore(backupData: any) {
+  const collections = ['people', 'titles', 'habilitaciones', 'schools', 'inspecciones'];
+  
+  for (const colName of collections) {
+    const items = backupData[colName] || [];
+    for (const item of items) {
+      // Use the original ID as the document ID in Firestore to preserve relationships
+      const { id, ...data } = item;
+      const docId = String(id); 
+      await setDoc(doc(db, colName, docId), {
+        ...data,
+        migratedAt: serverTimestamp()
+      });
+    }
+  }
 }
+

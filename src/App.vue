@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
 import { Users, Database, Settings, LogOut, Search, Plus, FilePlus, Scissors, Eye, Car, School, ClipboardCheck, FileText, Download, AlertTriangle, Building2, ClipboardList, Info, Trash2, Zap, Loader2, Upload } from 'lucide-vue-next';
@@ -23,6 +23,7 @@ import { enrichSchoolData } from './services/schoolService';
 import NewInspection from './components/NewInspection.vue';
 import InspectionsTable from './components/InspectionsTable.vue';
 import InspectionScanner from './components/InspectionScanner.vue';
+import BulkScanner from './components/BulkScanner.vue';
 import { generateInspectionPDF, generateHabilitacionPDF } from './utils/pdfGenerator';
 import { generateResolutionDOCX, generateElevacionTribunalDOCX } from './services/resolutionService';
 import { 
@@ -31,8 +32,9 @@ import {
   saveHabilitacion, getAllHabilitaciones, deleteHabilitacionById, updateHabilitacion,
   saveSchool, getAllSchools, deleteSchoolById, updateSchool,
   saveInspeccion, getAllInspecciones, deleteInspeccionById,
-  exportLegacyDatabase, migrateToPostgres
+  exportLegacyDatabase, migrateToFirestore
 } from './services/dbService';
+import { currentUser, loginWithGoogle, logout } from './services/authService';
 
 const activeTab = ref('registry');
 const people = ref<any[]>([]);
@@ -47,9 +49,43 @@ const selectedSchool = ref<any>(null);
 const selectedInspection = ref<any>(null);
 const searchQuery = ref('');
 const isMigrating = ref(false);
+
+const currentSectionLabel = computed(() => {
+  switch (activeTab.value) {
+    case 'registry': return 'Personas';
+    case 'titles_list': case 'titles_scan': return 'Títulos Automotor';
+    case 'hab_list': case 'hab_scan': return 'Habilitaciones';
+    case 'school_list': case 'school_scan': return 'Colegios';
+    case 'insp_list': case 'insp_scan': case 'insp_new': return 'Inspecciones';
+    case 'bulk': return 'Carga Masiva';
+    case 'database': return 'Base de Datos';
+    case 'merge': case 'split': case 'viewer': case 'renamer': return 'Herramientas PDF';
+    default: return 'Panel de Control';
+  }
+});
+const isLoggingIn = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
 
+const handleLogin = async () => {
+  isLoggingIn.value = true;
+  try {
+    await loginWithGoogle();
+    await loadData();
+  } catch (error) {
+    console.error('Login failed:', error);
+  } finally {
+    isLoggingIn.value = false;
+  }
+};
+
+const handleLogout = async () => {
+  if (confirm('¿Estás seguro de que quieres cerrar sesión?')) {
+    await logout();
+  }
+};
+
 const loadData = async () => {
+  if (!currentUser.value) return;
   people.value = await getAllPeople();
   titles.value = await getAllTitles();
   habilitaciones.value = await getAllHabilitaciones();
@@ -85,6 +121,19 @@ const filteredHabilitaciones = computed(() => {
     h.titular.toLowerCase().includes(q) || 
     (h.idNumber && h.idNumber.includes(q))
   );
+});
+
+watch(currentUser, (newUser) => {
+  if (newUser) {
+    loadData();
+  } else {
+    // Clear data on logout
+    people.value = [];
+    titles.value = [];
+    habilitaciones.value = [];
+    schools.value = [];
+    inspections.value = [];
+  }
 });
 
 onMounted(loadData);
@@ -190,22 +239,22 @@ const deletePerson = async (id: string) => {
   await loadData();
 };
 
-const deleteTitle = async (id: number) => {
+const deleteTitle = async (id: string) => {
   await deleteTitleById(id);
   await loadData();
 };
 
-const deleteHabilitacion = async (id: number) => {
+const deleteHabilitacion = async (id: string) => {
   await deleteHabilitacionById(id);
   await loadData();
 };
 
-const deleteSchool = async (id: number) => {
+const deleteSchool = async (id: string) => {
   await deleteSchoolById(id);
   await loadData();
 };
 
-const deleteInspeccion = async (id: number) => {
+const deleteInspeccion = async (id: string) => {
   await deleteInspeccionById(id);
   await loadData();
 };
@@ -236,43 +285,59 @@ const filteredSchools = computed(() => {
 });
 
 const getLinkedTitles = (idNumber: string) => {
+  if (!idNumber) return [];
   const cleanId = idNumber.replace(/\D/g, '');
-  return titles.value.filter(t => t.cuilTitular.replace(/\D/g, '').includes(cleanId));
+  return titles.value.filter(t => t.cuilTitular && t.cuilTitular.replace(/\D/g, '').includes(cleanId));
 };
 
 const getLinkedPerson = (cuil: string) => {
+  if (!cuil) return null;
   const cleanCuil = cuil.replace(/\D/g, '');
   return people.value.find(p => {
+    if (!p.idNumber) return false;
     const cleanDni = p.idNumber.replace(/\D/g, '');
     return cleanCuil.includes(cleanDni) && cleanDni.length >= 7;
   });
 };
 
 const getLinkedPersonByHab = (hab: any) => {
-  if (hab.idNumber) {
-    const cleanId = hab.idNumber.replace(/\D/g, '');
-    return people.value.find(p => p.idNumber.replace(/\D/g, '').includes(cleanId));
+  if (!hab) return null;
+  const habId = hab.idNumber ? hab.idNumber.replace(/\D/g, '') : '';
+  
+  if (habId) {
+    const person = people.value.find(p => p.idNumber && p.idNumber.replace(/\D/g, '').includes(habId));
+    if (person) return person;
   }
-  return people.value.find(p => 
-    p.surname.toLowerCase().includes(hab.titular.toLowerCase()) || 
-    hab.titular.toLowerCase().includes(p.surname.toLowerCase())
-  );
+  
+  // Fallback to name matching
+  if (!hab.titular) return null;
+  const cleanTitular = hab.titular.toLowerCase();
+  return people.value.find(p => {
+    const pName = `${p.surname} ${p.names}`.toLowerCase();
+    return pName.includes(cleanTitular) || cleanTitular.includes(p.surname.toLowerCase());
+  });
 };
 
 const getLinkedTitleByHab = (dominio: string) => {
   if (!dominio) return null;
   const cleanDom = dominio.replace(/\W/g, '').toUpperCase();
-  return titles.value.find(t => t.dominio.replace(/\W/g, '').toUpperCase().includes(cleanDom));
+  return titles.value.find(t => {
+    if (!t.dominio) return false;
+    const tDom = t.dominio.replace(/\W/g, '').toUpperCase();
+    return tDom === cleanDom || tDom.includes(cleanDom) || cleanDom.includes(tDom);
+  });
 };
+
 
 const getPersonVehicles = (idNumber: string) => {
+  if (!idNumber) return [];
   const cleanId = idNumber.replace(/\D/g, '');
-  return titles.value.filter(t => t.cuilTitular.replace(/\D/g, '').includes(cleanId));
+  return titles.value.filter(t => t.cuilTitular && t.cuilTitular.replace(/\D/g, '').includes(cleanId));
 };
 
-const getOccupiedDominios = (currentHabId?: number) => {
+const getOccupiedDominios = (currentHabId?: any) => {
   return habilitaciones.value
-    .filter(h => h.dominio && h.id !== currentHabId)
+    .filter(h => h.dominio && String(h.id) !== String(currentHabId))
     .map(h => h.dominio.replace(/\W/g, '').toUpperCase());
 };
 
@@ -281,7 +346,7 @@ const handlePersonUpdate = async (updatedData: any) => {
     const dataToSave = JSON.parse(JSON.stringify(updatedData));
     await updatePerson(updatedData.id, dataToSave);
     await loadData();
-    selectedPerson.value = people.value.find(p => p.id === updatedData.id);
+    selectedPerson.value = people.value.find(p => String(p.id) === String(updatedData.id));
   }
 };
 
@@ -290,7 +355,7 @@ const handleTitleUpdate = async (updatedData: any) => {
     const dataToSave = JSON.parse(JSON.stringify(updatedData));
     await updateTitle(updatedData.id, dataToSave);
     await loadData();
-    selectedTitle.value = titles.value.find(t => t.id === updatedData.id);
+    selectedTitle.value = titles.value.find(t => String(t.id) === String(updatedData.id));
   }
 };
 
@@ -301,7 +366,7 @@ const handleHabilitacionUpdate = async (updatedData: any) => {
     await updateHabilitacion(updatedData.id, dataToSave);
     await loadData();
     // Re-select the updated item from the fresh list to ensure reactivity
-    selectedHabilitacion.value = habilitaciones.value.find(h => h.id === updatedData.id);
+    selectedHabilitacion.value = habilitaciones.value.find(h => String(h.id) === String(updatedData.id));
   }
 };
 
@@ -322,16 +387,16 @@ const handleExportDB = async () => {
 };
 
 const handleMigration = async () => {
-  if (!confirm('Esto copiará todos tus datos locales actuales (Dexie) a la base de datos PostgreSQL en Docker. ¿Deseas continuar?')) return;
+  if (!confirm('Esto copiará todos tus datos locales actuales (Dexie) a Firebase en la nube. ¿Deseas continuar?')) return;
   
   isMigrating.value = true;
   try {
     const localData = await exportLegacyDatabase();
-    await migrateToPostgres(localData);
-    alert('¡Migración completada con éxito! Ahora el sistema usa la base de datos PostgreSQL.');
+    await migrateToFirestore(localData);
+    alert('¡Migración completada con éxito! Ahora el sistema usa la base de datos de Firebase.');
     await loadData();
   } catch (error: any) {
-    alert(`Error en la migración: Asegúrate de que el backend de Docker esté corriendo. ${error.message}`);
+    alert(`Error en la migración: ${error.message}`);
   } finally {
     isMigrating.value = false;
   }
@@ -346,10 +411,10 @@ const handleFileUpload = async (event: Event) => {
   reader.onload = async (e) => {
     try {
       const data = JSON.parse(e.target?.result as string);
-      if (!confirm('¿Deseas importar estos datos a PostgreSQL? Esto procesará el backup seleccionado.')) return;
+      if (!confirm('¿Deseas importar estos datos a Firebase? Esto procesará el backup seleccionado.')) return;
       
       isMigrating.value = true;
-      await migrateToPostgres(data);
+      await migrateToFirestore(data);
       alert('¡Importación completada con éxito!');
       await loadData();
     } catch (error: any) {
@@ -491,8 +556,8 @@ const findHabilitacionForSchool = (school: any) => {
   );
 };
 
-const linkSchoolToHab = async (schoolId: number, habId: number) => {
-  const hab = habilitaciones.value.find(h => h.id === habId);
+const linkSchoolToHab = async (schoolId: any, habId: any) => {
+  const hab = habilitaciones.value.find(h => String(h.id) === String(habId));
   if (hab) {
     const idColegios = hab.idColegios || [];
     if (!idColegios.includes(schoolId)) {
@@ -505,96 +570,111 @@ const linkSchoolToHab = async (schoolId: number, habId: number) => {
 </script>
 
 <template>
-  <div class="dashboard-layout">
+  <!-- Pantalla de Login -->
+  <div v-if="!currentUser" class="login-page">
+    <div class="login-card glass-card animate-fade">
+      <div class="login-logo">
+        <div class="logo-icon"><Database :size="48" /></div>
+        <h1>Lanus Digital</h1>
+      </div>
+      <p>Gestión Municipal de Transporte y Habilitaciones</p>
+      
+      <button class="btn btn-google" @click="handleLogin" :disabled="isLoggingIn">
+        <Loader2 v-if="isLoggingIn" class="spin" :size="20" />
+        <img v-else src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" />
+        <span>Entrar con Google</span>
+      </button>
+
+      <div class="login-footer">
+        <p>Sistema de uso restringido para personal autorizado.</p>
+      </div>
+    </div>
+  </div>
+  <div v-else class="dashboard-layout">
     <!-- Sidebar -->
-    <aside class="sidebar glass-card">
+    <aside class="sidebar">
       <div class="logo">
-        <div class="logo-icon"><Database :size="24" /></div>
-        <span>Lanus Digital</span>
+        <div class="logo-icon"><Database :size="20" /></div>
+        <h1>Lanus Digital</h1>
       </div>
       
-      <nav class="sidebar-nav">
-        <div class="nav-section">Registro de Personas</div>
-        <button class="nav-item" :class="{ active: activeTab === 'registry' || activeTab === 'scan' }" @click="activeTab = 'registry'">
-          <Users :size="20" /> <span>Personas</span>
+      <div class="nav-group">
+        <button class="nav-item" :class="{ active: activeTab === 'registry' }" @click="activeTab = 'registry'">
+          <Users :size="18" /> <span>Personas</span>
         </button>
-
-        <div class="nav-section">Registro Automotor</div>
-        <button class="nav-item" :class="{ active: activeTab === 'titles_list' || activeTab === 'titles_scan' }" @click="activeTab = 'titles_list'">
-          <Car :size="20" /> <span>Títulos</span>
+        <button class="nav-item" :class="{ active: activeTab === 'titles_list' }" @click="activeTab = 'titles_list'">
+          <Car :size="18" /> <span>Títulos</span>
         </button>
-
-        <div class="nav-section">Gestión Administrativa</div>
-        <button class="nav-item" :class="{ active: activeTab === 'hab_list' || activeTab === 'hab_scan' }" @click="activeTab = 'hab_list'">
-          <FileText :size="20" /> <span>Habilitaciones</span>
+        <button class="nav-item" :class="{ active: activeTab === 'hab_list' }" @click="activeTab = 'hab_list'">
+          <FileText :size="18" /> <span>Habilitaciones</span>
         </button>
-        <button class="nav-item" :class="{ active: activeTab === 'school_list' || activeTab === 'school_scan' }" @click="activeTab = 'school_list'">
-          <School :size="20" /> <span>Colegios</span>
+        <button class="nav-item" :class="{ active: activeTab === 'school_list' }" @click="activeTab = 'school_list'">
+          <School :size="18" /> <span>Colegios</span>
         </button>
-        <button class="nav-item" :class="{ active: ['insp_list', 'insp_new', 'insp_scan'].includes(activeTab) }" @click="activeTab = 'insp_list'">
-          <ClipboardCheck :size="20" /> <span>Inspecciones</span>
+        <button class="nav-item" :class="{ active: activeTab === 'insp_list' }" @click="activeTab = 'insp_list'">
+          <ClipboardList :size="18" /> <span>Inspecciones</span>
         </button>
-
-        <div class="nav-section">Herramientas PDF</div>
-        <button class="nav-item" :class="{ active: activeTab === 'merge' }" @click="activeTab = 'merge'">
-          <FilePlus :size="20" /> <span>Unir PDFs</span>
+        <button class="nav-item" :class="{ active: activeTab === 'bulk' }" @click="activeTab = 'bulk'">
+          <Zap :size="18" /> <span>Carga Masiva</span>
         </button>
-        <button class="nav-item" :class="{ active: activeTab === 'split' }" @click="activeTab = 'split'">
-          <Scissors :size="20" /> <span>Dividir PDF</span>
-        </button>
-        <button class="nav-item" :class="{ active: activeTab === 'renamer' }" @click="activeTab = 'renamer'">
-          <Search :size="20" /> <span>Renombrar IA</span>
-        </button>
-        <button class="nav-item" :class="{ active: activeTab === 'viewer' }" @click="activeTab = 'viewer'">
-          <Eye :size="20" /> <span>Visor PDF</span>
-        </button>
-      </nav>
-
-      <div class="sidebar-footer">
+        <div style="flex: 1;"></div>
         <button class="nav-item" :class="{ active: activeTab === 'database' }" @click="activeTab = 'database'">
-          <Database :size="20" /> <span>Base de Datos</span>
+          <Database :size="18" /> <span>Base de Datos</span>
         </button>
-        <button class="nav-item"><Settings :size="20" /> Ajustes</button>
-        <button class="nav-item text-danger"><LogOut :size="20" /> Salir</button>
+        <button class="nav-item text-danger" @click="handleLogout">
+          <LogOut :size="18" /> <span>Cerrar Sesión</span>
+        </button>
       </div>
     </aside>
-
-    <!-- Main Content -->
     <main class="main-content">
       <header class="top-bar">
-        <div class="search-bar">
-          <Search :size="18" class="search-icon" />
-          <input 
-            v-model="searchQuery" 
-            type="text" 
-            placeholder="Buscar por nombre o DNI..." 
-            class="search-input" 
-          />
+        <div class="header-left">
+          <div class="section-indicator">
+            <span class="label">Sección Actual</span>
+            <span class="value">{{ currentSectionLabel }}</span>
+          </div>
+          
+          <div class="search-bar">
+            <input 
+              type="text" 
+              v-model="searchQuery" 
+              placeholder="Buscar registros, patentes o nombres..." 
+              class="search-input"
+            />
+            <Search class="search-icon" :size="18" />
+          </div>
         </div>
-        <div class="user-profile">
-          <div class="avatar">J</div>
-          <span>Admin</span>
+        
+        <div class="header-right">
+          <div class="user-profile">
+            <div class="avatar-container">
+              <img v-if="currentUser.photoURL" :src="currentUser.photoURL" class="avatar-img" />
+              <div v-else class="avatar">{{ currentUser.displayName?.charAt(0) || 'U' }}</div>
+              <div class="status-dot"></div>
+            </div>
+            <div class="user-info">
+              <span class="user-name">{{ currentUser.displayName }}</span>
+              <span class="user-role">Administrador</span>
+            </div>
+          </div>
         </div>
       </header>
 
-      <div class="content-body animate-fade">
-        <!-- Dashboard / Registry -->
-        <div v-if="activeTab === 'registry'" class="animate-fade">
+      <div class="content-scroll-area">
+        <div class="animate-fade">
+        <!-- Personas -->
+        <section v-if="activeTab === 'registry'">
           <div class="section-header">
-            <div>
-              <h1>Registro de Personas</h1>
-              <p>Gestiona la base de datos de personas extraídas.</p>
+            <div class="title-group">
+              <h2>Personas</h2>
+              <p>Registro de titulares y personal.</p>
             </div>
             <button class="btn btn-primary" @click="activeTab = 'scan'">
-              <Plus :size="18" /> Registrar Persona
+              <Plus :size="16" /> Registrar Persona
             </button>
           </div>
-          <PeopleTable 
-            :people="filteredPeople" 
-            @delete="deletePerson" 
-            @view="viewDetails" 
-          />
-        </div>
+          <PeopleTable :people="filteredPeople" @delete="deletePerson" @view="viewDetails" />
+        </section>
 
         <div v-if="activeTab === 'scan'">
           <div class="section-header">
@@ -604,86 +684,81 @@ const linkSchoolToHab = async (schoolId: number, habId: number) => {
           <DniScanner @person-extracted="handlePersonAdded" />
         </div>
 
-        <div v-if="activeTab === 'database'" class="animate-fade">
+        <!-- Base de Datos -->
+        <section v-if="activeTab === 'database'">
           <div class="section-header">
-            <div>
-              <h1>Gestión de Datos</h1>
-              <p>Control de base de datos y migración a PostgreSQL (Docker).</p>
+            <div class="title-group">
+              <h2>Base de Datos</h2>
+              <p>Sincronización y herramientas.</p>
             </div>
-            <div class="header-actions" style="position: static; display: flex; gap: 12px;">
+            <div class="header-actions">
               <input type="file" ref="fileInput" style="display: none" accept=".json" @change="handleFileUpload" />
-              <button class="btn btn-secondary" @click="fileInput?.click()">
-                <Upload :size="18" /> Importar JSON
-              </button>
-              <button class="btn btn-secondary" @click="handleExportDB">
-                <Download :size="18" /> Exportar JSON
-              </button>
+              <button class="btn btn-secondary" @click="fileInput?.click()"><Upload :size="16" /> Importar</button>
               <button class="btn btn-primary" @click="handleMigration" :disabled="isMigrating">
-                <Loader2 v-if="isMigrating" class="spin" :size="18" />
-                <Zap v-else :size="18" /> Migrar Local a Docker
+                <Loader2 v-if="isMigrating" class="spin" :size="16" />
+                <Zap v-else :size="16" /> Sincronizar Nube
               </button>
             </div>
           </div>
 
-          <div class="glass-card p-32">
-            <div class="db-status">
-              <div class="db-icon"><Database :size="48" /></div>
-              <div class="db-info">
-                <h3>Estado del Sistema</h3>
-                <p>Tu base de datos contiene:</p>
-                <div class="db-stats">
-                  <div class="db-stat"><strong>{{ people.length }}</strong> Personas</div>
-                  <div class="db-stat"><strong>{{ titles.length }}</strong> Títulos</div>
-                  <div class="db-stat"><strong>{{ habilitaciones.length }}</strong> Habilitaciones</div>
-                  <div class="db-stat"><strong>{{ schools.length }}</strong> Colegios</div>
-                  <div class="db-stat"><strong>{{ inspections.length }}</strong> Inspecciones</div>
-                </div>
+          <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 24px;">
+            <TitleScanner @title-extracted="handleTitleAdded" />
+            <div class="glass-card" style="padding: 24px;">
+              <h3>Estado del Sistema</h3>
+              <div class="db-stats" style="margin: 16px 0 24px;">
+                <div class="db-stat"><strong>{{ people.length }}</strong> Personas</div>
+                <div class="db-stat"><strong>{{ titles.length }}</strong> Títulos</div>
+                <div class="db-stat"><strong>{{ habilitaciones.length }}</strong> Habilitaciones</div>
+              </div>
+              <button class="btn btn-secondary" style="width: 100%; justify-content: center;" @click="handleExportDB">
+                <Download :size="16" /> Exportar Copia Local
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Títulos -->
+        <section v-if="activeTab === 'titles_list' || activeTab === 'titles_scan'">
+          <div v-if="activeTab === 'titles_list'">
+            <div class="section-header">
+              <div class="title-group">
+                <h2>Títulos Automotor</h2>
+                <p>Base de datos de vehículos.</p>
+              </div>
+              <div class="header-actions">
+                <button class="btn btn-secondary" @click="activeTab = 'titles_scan'">
+                  <Upload :size="16" /> Escanear Título
+                </button>
+                <button class="btn btn-primary" @click="selectedTitle = {}">
+                  <Plus :size="16" /> Nuevo Título
+                </button>
               </div>
             </div>
-            
-            <div class="warning-banner">
-              <AlertTriangle :size="20" />
-              <p>La base de datos es local. Si borras los datos del navegador o cambias de computadora, perderás esta información a menos que realices un respaldo (Exportar).</p>
-            </div>
+            <TitlesTable :titles="filteredTitles" @delete="deleteTitle" @view="selectedTitle = $event" />
           </div>
-        </div>
 
-        <!-- Titles Section -->
-        <div v-if="activeTab === 'titles_list'" class="animate-fade">
-          <div class="section-header">
-            <div>
-              <h1>Registro de Títulos</h1>
-              <p>Gestiona los títulos automotores escaneados.</p>
+          <div v-else-if="activeTab === 'titles_scan'">
+            <div class="section-header">
+              <div class="title-group">
+                <h2>Escaneo de Títulos</h2>
+                <p>Sube o captura las fotos del título para extraer los datos con IA.</p>
+              </div>
+              <button class="btn btn-secondary" @click="activeTab = 'titles_list'">
+                Cancelar
+              </button>
             </div>
-            <button class="btn btn-primary" @click="activeTab = 'titles_scan'">
-              <Plus :size="18" /> Escanear Título
-            </button>
+            <TitleScanner @title-extracted="handleTitleAdded" />
           </div>
-          <TitlesTable 
-            :titles="filteredTitles" 
-            @delete="deleteTitle" 
-            @view="viewTitleDetails" 
-          />
-        </div>
+        </section>
 
-        <div v-if="activeTab === 'titles_scan'">
+        <!-- Habilitaciones -->
+        <section v-if="activeTab === 'hab_list'">
           <div class="section-header">
-            <h1>Escaneo de Títulos</h1>
-            <button class="btn" @click="activeTab = 'titles_list'">Cancelar</button>
-          </div>
-          <TitleScanner @title-extracted="handleTitleAdded" />
-        </div>
-
-        <!-- Habilitaciones Section -->
-        <div v-if="activeTab === 'hab_list'" class="animate-fade">
-          <div class="section-header">
-            <div>
-              <h1>Registro de Habilitaciones</h1>
-              <p>Seguimiento de expedientes GestDoc y licencias.</p>
+            <div class="title-group">
+              <h2>Habilitaciones</h2>
+              <p>Control de expedientes y licencias.</p>
             </div>
-            <button class="btn btn-primary" @click="activeTab = 'hab_scan'">
-              <Plus :size="18" /> Nueva Habilitación
-            </button>
+            <button class="btn btn-primary" @click="activeTab = 'hab_scan'"><Plus :size="16" /> Nueva</button>
           </div>
           <HabilitacionesTable 
             :habilitaciones="filteredHabilitaciones" 
@@ -695,66 +770,50 @@ const linkSchoolToHab = async (schoolId: number, habId: number) => {
             @generate-resolution="handleGenerateResolution"
             @generate-elevacion="handleGenerateElevacion"
           />
-        </div>
+        </section>
 
-        <div v-if="activeTab === 'hab_scan'">
+        <section v-if="activeTab === 'hab_scan'">
           <div class="section-header">
-            <h1>Escaneo de Carátula (GestDoc)</h1>
-            <button class="btn" @click="activeTab = 'hab_list'">Cancelar</button>
+            <div class="title-group"><h2>Escaneo de Carátula</h2></div>
+            <button class="btn btn-secondary" @click="activeTab = 'hab_list'">Cancelar</button>
           </div>
           <HabilitacionScanner @habilitacion-extracted="handleHabilitacionAdded" />
-        </div>
+        </section>
 
-        <!-- Schools Section -->
-        <div v-if="activeTab === 'school_list'" class="animate-fade">
+        <!-- Colegios -->
+        <section v-if="activeTab === 'school_list'">
           <div class="section-header">
-            <div>
-              <h1>Relación con Colegios</h1>
-              <p>Gestiona los certificados de colegios y su vinculación con transportistas.</p>
+            <div class="title-group">
+              <h2>Colegios</h2>
+              <p>Gestión de establecimientos.</p>
             </div>
-            <button class="btn btn-primary" @click="activeTab = 'school_scan'">
-              <Plus :size="18" /> Escanear Certificado
-            </button>
+            <button class="btn btn-primary" @click="activeTab = 'school_scan'"><Plus :size="16" /> Escanear</button>
           </div>
-          <SchoolsTable 
-            :schools="filteredSchools" 
-            :habilitaciones="habilitaciones"
-            @delete="deleteSchool" 
-            @view="viewSchoolDetails" 
-          />
-        </div>
+          <SchoolsTable :schools="filteredSchools" :habilitaciones="habilitaciones" @delete="deleteSchool" @view="viewSchoolDetails" />
+        </section>
 
-        <div v-if="activeTab === 'school_scan'">
+        <section v-if="activeTab === 'school_scan'">
           <div class="section-header">
-            <h1>Escaneo de Certificado de Colegio</h1>
-            <button class="btn" @click="activeTab = 'school_list'">Cancelar</button>
+            <div class="title-group"><h2>Escaneo de Certificado</h2></div>
+            <button class="btn btn-secondary" @click="activeTab = 'school_list'">Cancelar</button>
           </div>
           <SchoolScanner @school-extracted="handleSchoolAdded" />
-        </div>
+        </section>
 
-        <!-- Inspections Section -->
-        <div v-if="activeTab === 'insp_list'" class="animate-fade">
+        <!-- Inspecciones -->
+        <section v-if="activeTab === 'insp_list'">
           <div class="section-header">
-            <div>
-              <h1>Control de Inspecciones</h1>
-              <p>Seguimiento técnico de las unidades habilitadas.</p>
+            <div class="title-group">
+              <h2>Inspecciones</h2>
+              <p>Seguimiento técnico de unidades.</p>
             </div>
-            <div class="header-actions-group">
-              <button class="btn btn-secondary" @click="activeTab = 'insp_scan'">
-                <Scissors :size="18" /> Escanear Acta
-              </button>
-              <button class="btn btn-primary" @click="activeTab = 'insp_new'">
-                <Plus :size="18" /> Nueva Inspección
-              </button>
+            <div class="header-actions">
+              <button class="btn btn-secondary" @click="activeTab = 'insp_scan'"><Scissors :size="16" /> Escanear</button>
+              <button class="btn btn-primary" @click="activeTab = 'insp_new'"><Plus :size="16" /> Nueva</button>
             </div>
           </div>
-          <InspectionsTable 
-            :inspections="filteredInspections" 
-            @delete="deleteInspeccion" 
-            @view="viewInspectionDetails" 
-            @print="handlePrintInspection"
-          />
-        </div>
+          <InspectionsTable :inspections="filteredInspections" @delete="deleteInspeccion" @view="viewInspectionDetails" @print="handlePrintInspection" />
+        </section>
 
         <div v-if="activeTab === 'insp_scan'">
           <div class="section-header">
@@ -788,7 +847,12 @@ const linkSchoolToHab = async (schoolId: number, habId: number) => {
         <div v-if="activeTab === 'renamer'">
           <PdfRenamer />
         </div>
-      </div>
+
+          <div v-if="activeTab === 'bulk'">
+            <BulkScanner @saved="loadData" />
+          </div>
+        </div> <!-- Fin animate-fade -->
+      </div> <!-- Fin content-scroll-area -->
     </main>
 
     <!-- Modals -->

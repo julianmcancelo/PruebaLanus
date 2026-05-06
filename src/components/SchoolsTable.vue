@@ -8,9 +8,12 @@ const props = defineProps<{
 
 defineEmits(['delete', 'view']);
 
-const getHabilitacionesForSchool = (schoolId: number) => {
+const getHabilitacionesForSchool = (schoolId: any) => {
   if (!props.habilitaciones) return [];
-  return props.habilitaciones.filter(h => h.idColegios?.includes(schoolId));
+  const strId = String(schoolId);
+  return props.habilitaciones.filter(h => 
+    h.idColegios?.some((id: any) => String(id) === strId)
+  );
 };
 </script>
 
