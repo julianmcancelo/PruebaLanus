@@ -35,8 +35,9 @@ import {
   exportLegacyDatabase, migrateToFirestore
 } from './services/dbService';
 import { currentUser, loginWithGoogle, logout, authError, isChecking, isLoggingIn } from './services/authService';
+import Dashboard from './components/Dashboard.vue';
 
-const activeTab = ref('registry');
+const activeTab = ref('dashboard');
 const people = ref<any[]>([]);
 const titles = ref<any[]>([]);
 const habilitaciones = ref<any[]>([]);
@@ -63,6 +64,7 @@ const showToast = (message: string, type: Toast['type'] = 'info') => {
 
 const currentSectionLabel = computed(() => {
   switch (activeTab.value) {
+    case 'dashboard': return 'Panel de Control';
     case 'registry': return 'Personas';
     case 'titles_list': case 'titles_scan': return 'Títulos Automotor';
     case 'hab_list': case 'hab_scan': return 'Habilitaciones';
@@ -723,6 +725,9 @@ const linkSchoolToHab = async (schoolId: any, habId: any) => {
       </div>
       
       <div class="nav-group">
+        <button class="nav-item" :class="{ active: activeTab === 'dashboard' }" @click="activeTab = 'dashboard'">
+          <Database :size="18" /> <span>Inicio</span>
+        </button>
         <button class="nav-item" :class="{ active: activeTab === 'registry' }" @click="activeTab = 'registry'">
           <Users :size="18" /> <span>Personas</span>
         </button>
@@ -786,6 +791,18 @@ const linkSchoolToHab = async (schoolId: any, habId: any) => {
 
       <div class="content-scroll-area">
         <div class="animate-fade">
+        <!-- Dashboard -->
+        <section v-if="activeTab === 'dashboard'">
+          <Dashboard 
+            :people="people" 
+            :titles="titles" 
+            :habilitaciones="habilitaciones" 
+            :schools="schools" 
+            :inspections="inspections"
+            @navigate="activeTab = $event"
+          />
+        </section>
+
         <!-- Personas -->
         <section v-if="activeTab === 'registry'">
           <div class="section-header">
