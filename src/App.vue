@@ -34,7 +34,7 @@ import {
   saveInspeccion, getAllInspecciones, deleteInspeccionById,
   exportLegacyDatabase, migrateToFirestore
 } from './services/dbService';
-import { currentUser, loginWithGoogle, logout, authError } from './services/authService';
+import { currentUser, loginWithGoogle, logout, authError, isChecking } from './services/authService';
 
 const activeTab = ref('registry');
 const people = ref<any[]>([]);
@@ -639,15 +639,22 @@ const linkSchoolToHab = async (schoolId: any, habId: any) => {
       </div>
       <p>Gestión Municipal de Transporte y Habilitaciones</p>
       
-      <div v-if="authError" class="login-error">
-        {{ authError }}
+      <div v-if="isChecking" class="login-loading">
+        <Loader2 class="spin" :size="24" />
+        <span>Verificando sesión...</span>
       </div>
       
-      <button class="btn btn-google" @click="handleLogin" :disabled="isLoggingIn">
-        <Loader2 v-if="isLoggingIn" class="spin" :size="20" />
-        <img v-else src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" />
-        <span>Entrar con Google</span>
-      </button>
+      <template v-else>
+        <div v-if="authError" class="login-error">
+          {{ authError }}
+        </div>
+        
+        <button class="btn btn-google" @click="handleLogin" :disabled="isLoggingIn">
+          <Loader2 v-if="isLoggingIn" class="spin" :size="20" />
+          <img v-else src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" />
+          <span>{{ isLoggingIn ? 'Iniciando sesión...' : 'Entrar con Google' }}</span>
+        </button>
+      </template>
 
       <div class="login-footer">
         <p>Sistema de uso restringido para personal autorizado.</p>
@@ -1024,6 +1031,18 @@ const linkSchoolToHab = async (schoolId: any, habId: any) => {
   font-weight: 600;
   margin-bottom: 16px;
   text-align: center;
+}
+
+.login-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 16px;
+  margin-bottom: 16px;
 }
 
 .nav-section {

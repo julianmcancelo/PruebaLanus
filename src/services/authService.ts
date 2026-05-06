@@ -1,14 +1,16 @@
 import { auth } from '../firebase';
-import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User, getRedirectResult } from 'firebase/auth';
 import { ref } from 'vue';
 
 const ALLOWED_EMAIL = 'jcancelo.dev@gmail.com';
 const provider = new GoogleAuthProvider();
 
-export const currentUser = ref<User | null>(auth.currentUser);
+export const currentUser = ref<User | null>(null);
 export const authError = ref<string | null>(null);
+export const isChecking = ref(true);
 
 onAuthStateChanged(auth, (user) => {
+  isChecking.value = false;
   if (user && user.email !== ALLOWED_EMAIL) {
     authError.value = `Acceso denegado. Solo ${ALLOWED_EMAIL} puede ingresar.`;
     signOut(auth);
@@ -20,6 +22,7 @@ onAuthStateChanged(auth, (user) => {
 });
 
 export const loginWithGoogle = async () => {
+  authError.value = null;
   try {
     const result = await signInWithPopup(auth, provider);
     if (result.user.email !== ALLOWED_EMAIL) {
@@ -27,10 +30,19 @@ export const loginWithGoogle = async () => {
       await signOut(auth);
       throw new Error('Email no autorizado');
     }
-    authError.value = null;
     return result.user;
   } catch (error: any) {
-    console.error("Error logging in with Google:", error);
+    const code = error?.code || '';
+    if (code === 'auth/popup-blocked' || code === 'auth/cancelled-popup-request') {
+      authError.value = 'El popup fue bloqueado. Permití popups para este sitio e intentá de nuevo.';
+    } else if (code === 'auth/unauthorized-domain') {
+      authError.value = 'Dominio no autorizado en Firebase. Contactá al administrador.';
+    } else if (code === 'auth/network-request-failed') {
+      authError.value = 'Error de red. Verificá tu conexión a internet.';
+    } else {
+      authError.value = `Error al iniciar sesión: ${error?.message || 'Error desconocido'}`;
+    }
+    console.error('Login error:', error);
     throw error;
   }
 };
@@ -39,7 +51,7 @@ export const logout = async () => {
   try {
     await signOut(auth);
   } catch (error) {
-    console.error("Error logging out:", error);
+    console.error('Error logging out:', error);
     throw error;
   }
 };
