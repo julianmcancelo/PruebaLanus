@@ -120,18 +120,23 @@ const processFiles = async () => {
 const saveAll = async () => {
   isProcessing.value = true;
   let count = 0;
+  let dupCount = 0;
   for (const res of results.value) {
     if (res.status === 'success') {
       if (res.type === 'person') {
-        await savePerson(res.data);
+        const result = await savePerson(res.data);
+        if (result.isDuplicate) dupCount++;
       } else if (res.type === 'title') {
-        await saveTitle(res.data);
+        const result = await saveTitle(res.data);
+        if (result.isDuplicate) dupCount++;
       }
       count++;
     }
   }
   isProcessing.value = false;
-  alert(`¡${count} registros procesados con éxito!`);
+  let msg = `¡${count} registros procesados!`;
+  if (dupCount > 0) msg += ` (${dupCount} eran duplicados, se actualizaron)`;
+  alert(msg);
   emit('saved');
   results.value = [];
   files.value = [];

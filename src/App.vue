@@ -139,19 +139,28 @@ watch(currentUser, (newUser) => {
 onMounted(loadData);
 
 const handlePersonAdded = async (newPerson: any) => {
-  await savePerson(newPerson);
+  const result = await savePerson(newPerson);
+  if (result.isDuplicate) {
+    alert(`⚠️ Persona duplicada: DNI ${newPerson.idNumber} ya existía. Se actualizaron los datos.`);
+  }
   await loadData();
   activeTab.value = 'registry';
 };
 
 const handleTitleAdded = async (newTitle: any) => {
-  await saveTitle(newTitle);
+  const result = await saveTitle(newTitle);
+  if (result.isDuplicate) {
+    alert(`⚠️ Título duplicado: Patente ${newTitle.dominio} ya existía. Se actualizaron los datos.`);
+  }
   await loadData();
   activeTab.value = 'titles_list';
 };
 
 const handleHabilitacionAdded = async (data: any) => {
-  await saveHabilitacion(data);
+  const result = await saveHabilitacion(data);
+  if (result.isDuplicate) {
+    alert(`⚠️ Habilitación duplicada: Expediente ${data.nroExpediente} ya existía. Se actualizaron los datos.`);
+  }
   await loadData();
   activeTab.value = 'hab_list';
 };
@@ -171,7 +180,11 @@ const handleSchoolAdded = async (schoolData: any) => {
     }
 
     // 1. Save school (this handles duplicate checking by name in dbService)
-    const schoolId = await saveSchool(schoolData);
+    const result = await saveSchool(schoolData);
+    if (result.isDuplicate) {
+      alert(`⚠️ Colegio duplicado: "${schoolData.nombre}" ya existía. Se actualizaron los datos.`);
+    }
+    const schoolId = result.id;
     
     // 2. Link to habilitacion if dominio matches
     if (schoolData.dominio) {

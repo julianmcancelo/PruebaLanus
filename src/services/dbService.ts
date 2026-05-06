@@ -53,33 +53,30 @@ const snapshotToArray = (snapshot: any) => {
 };
 
 // PEOPLE
-export async function savePerson(person: DniData) {
+export async function savePerson(person: DniData): Promise<{ id: string; isDuplicate: boolean }> {
   if (!person.idNumber) {
     console.warn('Intento de guardar persona sin DNI');
     const docRef = await addDoc(collection(db, 'people'), { ...person, timestamp: serverTimestamp() });
-    return docRef.id;
+    return { id: docRef.id, isDuplicate: false };
   }
 
-  // Check for duplicate by DNI (idNumber)
   const q = query(collection(db, 'people'), where('idNumber', '==', person.idNumber));
   const snapshot = await getDocs(q);
   
   if (!snapshot.empty) {
-    console.log('Persona duplicada detectada (DNI:', person.idNumber, '), actualizando...');
     const existingDoc = snapshot.docs[0];
     await updateDoc(existingDoc.ref, {
       ...person,
       updatedAt: serverTimestamp()
     });
-    return existingDoc.id;
+    return { id: existingDoc.id, isDuplicate: true };
   }
 
-  console.log('Registrando nueva persona:', person.surname);
   const docRef = await addDoc(collection(db, 'people'), {
     ...person,
     timestamp: serverTimestamp()
   });
-  return docRef.id;
+  return { id: docRef.id, isDuplicate: false };
 }
 
 export async function getAllPeople() {
@@ -103,29 +100,26 @@ export async function updatePerson(id: string, data: Partial<PersonRecord>) {
 }
 
 // TITLES
-export async function saveTitle(titleData: any) {
-  // Check for duplicate by Patente (dominio)
+export async function saveTitle(titleData: any): Promise<{ id: string; isDuplicate: boolean }> {
   if (titleData.dominio) {
     const q = query(collection(db, 'titles'), where('dominio', '==', titleData.dominio));
     const snapshot = await getDocs(q);
     
     if (!snapshot.empty) {
-      console.log('Título duplicado detectado (Dominio:', titleData.dominio, '), actualizando...');
       const existingDoc = snapshot.docs[0];
       await updateDoc(existingDoc.ref, {
         ...titleData,
         updatedAt: serverTimestamp()
       });
-      return existingDoc.id;
+      return { id: existingDoc.id, isDuplicate: true };
     }
   }
 
-  console.log('Registrando nuevo título:', titleData.dominio);
   const docRef = await addDoc(collection(db, 'titles'), {
     ...titleData,
     timestamp: serverTimestamp()
   });
-  return docRef.id;
+  return { id: docRef.id, isDuplicate: false };
 }
 
 export async function getAllTitles() {
@@ -145,12 +139,26 @@ export async function updateTitle(id: string, data: any) {
 }
 
 // HABILITACIONES
-export async function saveHabilitacion(data: any) {
+export async function saveHabilitacion(data: any): Promise<{ id: string; isDuplicate: boolean }> {
+  if (data.nroExpediente) {
+    const q = query(collection(db, 'habilitaciones'), where('nroExpediente', '==', data.nroExpediente));
+    const snapshot = await getDocs(q);
+    
+    if (!snapshot.empty) {
+      const existingDoc = snapshot.docs[0];
+      await updateDoc(existingDoc.ref, {
+        ...data,
+        updatedAt: serverTimestamp()
+      });
+      return { id: existingDoc.id, isDuplicate: true };
+    }
+  }
+
   const docRef = await addDoc(collection(db, 'habilitaciones'), {
     ...data,
     timestamp: serverTimestamp()
   });
-  return docRef.id;
+  return { id: docRef.id, isDuplicate: false };
 }
 
 export async function getAllHabilitaciones() {
@@ -170,8 +178,7 @@ export async function updateHabilitacion(id: string, data: any) {
 }
 
 // SCHOOLS
-export async function saveSchool(data: any) {
-  // Check for duplicate by name
+export async function saveSchool(data: any): Promise<{ id: string; isDuplicate: boolean }> {
   if (data.nombre) {
     const q = query(collection(db, 'schools'), where('nombre', '==', data.nombre));
     const snapshot = await getDocs(q);
@@ -182,7 +189,7 @@ export async function saveSchool(data: any) {
         ...data,
         updatedAt: serverTimestamp()
       });
-      return existingDoc.id;
+      return { id: existingDoc.id, isDuplicate: true };
     }
   }
 
@@ -190,7 +197,7 @@ export async function saveSchool(data: any) {
     ...data,
     timestamp: serverTimestamp()
   });
-  return docRef.id;
+  return { id: docRef.id, isDuplicate: false };
 }
 
 export async function getAllSchools() {
@@ -210,12 +217,12 @@ export async function updateSchool(id: string, data: any) {
 }
 
 // INSPECCIONES
-export async function saveInspeccion(data: any) {
+export async function saveInspeccion(data: any): Promise<{ id: string; isDuplicate: boolean }> {
   const docRef = await addDoc(collection(db, 'inspecciones'), {
     ...data,
     timestamp: serverTimestamp()
   });
-  return docRef.id;
+  return { id: docRef.id, isDuplicate: false };
 }
 
 export async function getAllInspecciones() {
