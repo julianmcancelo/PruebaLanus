@@ -82,6 +82,7 @@ const handleLogin = async () => {
   } catch (error) {
     console.error('Login failed:', error);
   }
+  // authError is reactive and will show automatically
 };
 
 const handleLogout = async () => {

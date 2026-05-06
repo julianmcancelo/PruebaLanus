@@ -1,5 +1,5 @@
 import { auth } from '../firebase';
-import { GoogleAuthProvider, signInWithRedirect, signOut, onAuthStateChanged, User, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup, signInWithRedirect, signOut, onAuthStateChanged, User, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { ref } from 'vue';
 
 const ALLOWED_EMAIL = 'jcancelo.dev@gmail.com';
@@ -13,34 +13,55 @@ export const isLoggingIn = ref(false);
 
 setPersistence(auth, browserLocalPersistence).catch(console.error);
 
-let authInitialized = false;
-
-onAuthStateChanged(auth, async (user) => {
-  if (!authInitialized) {
-    authInitialized = true;
+let authDone = false;
+const authTimeout = setTimeout(() => {
+  if (!authDone) {
+    authDone = true;
     isChecking.value = false;
+    isLoggingIn.value = false;
   }
+}, 5000);
+
+onAuthStateChanged(auth, (user) => {
+  authDone = true;
+  clearTimeout(authTimeout);
+  isChecking.value = false;
   isLoggingIn.value = false;
 
   if (user && user.email !== ALLOWED_EMAIL) {
     authError.value = `Acceso denegado. Solo ${ALLOWED_EMAIL} puede ingresar.`;
-    await signOut(auth);
+    signOut(auth);
     currentUser.value = null;
   } else {
     currentUser.value = user;
-    authError.value = null;
+    if (user) authError.value = null;
   }
 });
 
 export const loginWithGoogle = async () => {
   authError.value = null;
   isLoggingIn.value = true;
-  isChecking.value = false;
   try {
-    await signInWithRedirect(auth, provider);
+    // Try popup first, fallback to redirect
+    const result = await signInWithPopup(auth, provider);
+    if (result.user.email !== ALLOWED_EMAIL) {
+      authError.value = `Acceso denegado. Solo ${ALLOWED_EMAIL} puede ingresar.`;
+      await signOut(auth);
+      throw new Error('Email no autorizado');
+    }
+    return result.user;
   } catch (error: any) {
-    isLoggingIn.value = false;
-    if (error?.code !== 'auth/redirect-cancelled-by-user') {
+    const code = error?.code || '';
+    if (code === 'auth/popup-blocked' || code === 'auth/cancelled-popup-request') {
+      // Fallback to redirect
+      try {
+        await signInWithRedirect(auth, provider);
+      } catch (redirectError: any) {
+        isLoggingIn.value = false;
+        authError.value = `Error: ${redirectError?.message || 'Desconocido'}`;
+      }
+    } else if (code !== 'auth/redirect-cancelled-by-user') {
+      isLoggingIn.value = false;
       authError.value = `Error: ${error?.message || 'Desconocido'}`;
     }
     throw error;
