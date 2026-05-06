@@ -34,7 +34,7 @@ import {
   saveInspeccion, getAllInspecciones, deleteInspeccionById,
   exportLegacyDatabase, migrateToFirestore
 } from './services/dbService';
-import { currentUser, loginWithGoogle, logout, authError, isChecking } from './services/authService';
+import { currentUser, loginWithGoogle, logout, authError, isChecking, isLoggingIn } from './services/authService';
 
 const activeTab = ref('registry');
 const people = ref<any[]>([]);
@@ -74,18 +74,13 @@ const currentSectionLabel = computed(() => {
     default: return 'Panel de Control';
   }
 });
-const isLoggingIn = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
 
 const handleLogin = async () => {
-  isLoggingIn.value = true;
   try {
     await loginWithGoogle();
-    await loadData();
   } catch (error) {
     console.error('Login failed:', error);
-  } finally {
-    isLoggingIn.value = false;
   }
 };
 
@@ -652,7 +647,7 @@ const linkSchoolToHab = async (schoolId: any, habId: any) => {
         <button class="btn btn-google" @click="handleLogin" :disabled="isLoggingIn">
           <Loader2 v-if="isLoggingIn" class="spin" :size="20" />
           <img v-else src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" />
-          <span>{{ isLoggingIn ? 'Iniciando sesión...' : 'Entrar con Google' }}</span>
+          <span>{{ isLoggingIn ? 'Redirigiendo a Google...' : 'Entrar con Google' }}</span>
         </button>
       </template>
 
