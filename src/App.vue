@@ -34,7 +34,7 @@ import {
   saveInspeccion, getAllInspecciones, deleteInspeccionById,
   exportLegacyDatabase, migrateToFirestore
 } from './services/dbService';
-import { currentUser, loginWithGoogle, logout } from './services/authService';
+import { currentUser, loginWithGoogle, logout, authError } from './services/authService';
 
 const activeTab = ref('registry');
 const people = ref<any[]>([]);
@@ -49,6 +49,17 @@ const selectedSchool = ref<any>(null);
 const selectedInspection = ref<any>(null);
 const searchQuery = ref('');
 const isMigrating = ref(false);
+
+// Toast notifications
+interface Toast { id: number; message: string; type: 'success' | 'error' | 'warning' | 'info' }
+const toasts = ref<Toast[]>([]);
+let toastId = 0;
+
+const showToast = (message: string, type: Toast['type'] = 'info') => {
+  const id = ++toastId;
+  toasts.value.push({ id, message, type });
+  setTimeout(() => { toasts.value = toasts.value.filter(t => t.id !== id); }, 4000);
+};
 
 const currentSectionLabel = computed(() => {
   switch (activeTab.value) {
@@ -141,7 +152,9 @@ onMounted(loadData);
 const handlePersonAdded = async (newPerson: any) => {
   const result = await savePerson(newPerson);
   if (result.isDuplicate) {
-    alert(`⚠️ Persona duplicada: DNI ${newPerson.idNumber} ya existía. Se actualizaron los datos.`);
+    showToast(`Persona duplicada: DNI ${newPerson.idNumber} ya existía. Datos actualizados.`, 'warning');
+  } else {
+    showToast(`Persona registrada: ${newPerson.surname}, ${newPerson.names}`, 'success');
   }
   await loadData();
   activeTab.value = 'registry';
@@ -150,7 +163,9 @@ const handlePersonAdded = async (newPerson: any) => {
 const handleTitleAdded = async (newTitle: any) => {
   const result = await saveTitle(newTitle);
   if (result.isDuplicate) {
-    alert(`⚠️ Título duplicado: Patente ${newTitle.dominio} ya existía. Se actualizaron los datos.`);
+    showToast(`Título duplicado: Patente ${newTitle.dominio} ya existía. Datos actualizados.`, 'warning');
+  } else {
+    showToast(`Título registrado: ${newTitle.marca} ${newTitle.modelo} (${newTitle.dominio})`, 'success');
   }
   await loadData();
   activeTab.value = 'titles_list';
@@ -159,7 +174,9 @@ const handleTitleAdded = async (newTitle: any) => {
 const handleHabilitacionAdded = async (data: any) => {
   const result = await saveHabilitacion(data);
   if (result.isDuplicate) {
-    alert(`⚠️ Habilitación duplicada: Expediente ${data.nroExpediente} ya existía. Se actualizaron los datos.`);
+    showToast(`Habilitación duplicada: Expediente ${data.nroExpediente} ya existía. Datos actualizados.`, 'warning');
+  } else {
+    showToast(`Habilitación registrada: Exp ${data.nroExpediente}`, 'success');
   }
   await loadData();
   activeTab.value = 'hab_list';
@@ -182,7 +199,9 @@ const handleSchoolAdded = async (schoolData: any) => {
     // 1. Save school (this handles duplicate checking by name in dbService)
     const result = await saveSchool(schoolData);
     if (result.isDuplicate) {
-      alert(`⚠️ Colegio duplicado: "${schoolData.nombre}" ya existía. Se actualizaron los datos.`);
+      showToast(`Colegio duplicado: "${schoolData.nombre}" ya existía. Datos actualizados.`, 'warning');
+    } else {
+      showToast(`Colegio registrado: ${schoolData.nombre}`, 'success');
     }
     const schoolId = result.id;
     
@@ -204,7 +223,7 @@ const handleSchoolAdded = async (schoolData: any) => {
     activeTab.value = 'school_list';
   } catch (error) {
     console.error('Error adding school:', error);
-    alert('Error al registrar el colegio.');
+    showToast('Error al registrar el colegio.', 'error');
   }
 };
 
@@ -251,40 +270,45 @@ const deletePerson = async (id: string) => {
   if (!id || !confirm('¿Eliminar esta persona?')) return;
   try {
     await deletePersonById(id);
+    showToast('Persona eliminada', 'success');
     await loadData();
-  } catch (e) { console.error('Error deleting person:', e); alert('Error al eliminar'); }
+  } catch (e) { console.error('Error deleting person:', e); showToast('Error al eliminar', 'error'); }
 };
 
 const deleteTitle = async (id: string) => {
   if (!id || !confirm('¿Eliminar este título?')) return;
   try {
     await deleteTitleById(id);
+    showToast('Título eliminado', 'success');
     await loadData();
-  } catch (e) { console.error('Error deleting title:', e); alert('Error al eliminar'); }
+  } catch (e) { console.error('Error deleting title:', e); showToast('Error al eliminar', 'error'); }
 };
 
 const deleteHabilitacion = async (id: string) => {
   if (!id || !confirm('¿Eliminar esta habilitación?')) return;
   try {
     await deleteHabilitacionById(id);
+    showToast('Habilitación eliminada', 'success');
     await loadData();
-  } catch (e) { console.error('Error deleting habilitacion:', e); alert('Error al eliminar'); }
+  } catch (e) { console.error('Error deleting habilitacion:', e); showToast('Error al eliminar', 'error'); }
 };
 
 const deleteSchool = async (id: string) => {
   if (!id || !confirm('¿Eliminar este colegio?')) return;
   try {
     await deleteSchoolById(id);
+    showToast('Colegio eliminado', 'success');
     await loadData();
-  } catch (e) { console.error('Error deleting school:', e); alert('Error al eliminar'); }
+  } catch (e) { console.error('Error deleting school:', e); showToast('Error al eliminar', 'error'); }
 };
 
 const deleteInspeccion = async (id: string) => {
   if (!id || !confirm('¿Eliminar esta inspección?')) return;
   try {
     await deleteInspeccionById(id);
+    showToast('Inspección eliminada', 'success');
     await loadData();
-  } catch (e) { console.error('Error deleting inspection:', e); alert('Error al eliminar'); }
+  } catch (e) { console.error('Error deleting inspection:', e); showToast('Error al eliminar', 'error'); }
 };
 
 const viewDetails = (person: any) => selectedPerson.value = person;
@@ -410,7 +434,7 @@ const handleExportDB = async () => {
     URL.revokeObjectURL(url);
   } catch (error) {
     console.error('Error exporting database:', error);
-    alert('Error al exportar la base de datos.');
+    showToast('Error al exportar la base de datos.', 'error');
   }
 };
 
@@ -421,10 +445,10 @@ const handleMigration = async () => {
   try {
     const localData = await exportLegacyDatabase();
     await migrateToFirestore(localData);
-    alert('¡Migración completada con éxito! Ahora el sistema usa la base de datos de Firebase.');
+    showToast('¡Migración completada! Ahora el sistema usa Firebase.', 'success');
     await loadData();
   } catch (error: any) {
-    alert(`Error en la migración: ${error.message}`);
+    showToast(`Error en la migración: ${error.message}`, 'error');
   } finally {
     isMigrating.value = false;
   }
@@ -443,10 +467,10 @@ const handleFileUpload = async (event: Event) => {
       
       isMigrating.value = true;
       await migrateToFirestore(data);
-      alert('¡Importación completada con éxito!');
+      showToast('¡Importación completada!', 'success');
       await loadData();
     } catch (error: any) {
-      alert(`Error al importar: ${error.message}`);
+      showToast(`Error al importar: ${error.message}`, 'error');
     } finally {
       isMigrating.value = false;
       if (fileInput.value) fileInput.value.value = '';
@@ -546,7 +570,7 @@ const handleDownloadInspectionExcel = async (hab: any) => {
     window.URL.revokeObjectURL(url);
   } catch (error: any) {
     console.error('Error filling Excel:', error);
-    alert(`No se pudo generar el Excel: ${error.message}`);
+    showToast(`No se pudo generar el Excel: ${error.message}`, 'error');
   }
 };
 
@@ -554,16 +578,15 @@ const handleGenerateResolution = async (hab: any) => {
   const person = getLinkedPersonByHab(hab);
   const title = getLinkedTitleByHab(hab.dominio);
   
-  // Decide type based on linked schools or title type
-  // If has schools linked, it's definitely Escolar
   const hasSchools = hab.idColegios && hab.idColegios.length > 0;
   const isEscolarByTitle = title?.tipo?.toLowerCase().includes('escolar');
   const type = (hasSchools || isEscolarByTitle) ? 'escolar' : 'remis';
   
   try {
     await generateResolutionDOCX(type as any, { hab, person, title });
+    showToast('Resolución generada correctamente', 'success');
   } catch (error: any) {
-    alert(`Error al generar resolución: ${error.message}`);
+    showToast(`Error al generar resolución: ${error.message}`, 'error');
   }
 };
 
@@ -572,8 +595,9 @@ const handleGenerateElevacion = async (hab: any) => {
   const title = getLinkedTitleByHab(hab.dominio);
   try {
     await generateElevacionTribunalDOCX({ hab, person, title });
+    showToast('Elevación a tribunal generada', 'success');
   } catch (error: any) {
-    alert(`Error al generar elevación: ${error.message}`);
+    showToast(`Error al generar elevación: ${error.message}`, 'error');
   }
 };
 
@@ -598,6 +622,14 @@ const linkSchoolToHab = async (schoolId: any, habId: any) => {
 </script>
 
 <template>
+  <!-- Toast Notifications -->
+  <div class="toast-container">
+    <div v-for="toast in toasts" :key="toast.id" class="toast" :class="toast.type">
+      <span class="toast-icon">{{ toast.type === 'success' ? '✓' : toast.type === 'error' ? '✕' : toast.type === 'warning' ? '⚠' : 'ℹ' }}</span>
+      <span class="toast-message">{{ toast.message }}</span>
+    </div>
+  </div>
+
   <!-- Pantalla de Login -->
   <div v-if="!currentUser" class="login-page">
     <div class="login-card glass-card animate-fade">
@@ -606,6 +638,10 @@ const linkSchoolToHab = async (schoolId: any, habId: any) => {
         <h1>Lanus Digital</h1>
       </div>
       <p>Gestión Municipal de Transporte y Habilitaciones</p>
+      
+      <div v-if="authError" class="login-error">
+        {{ authError }}
+      </div>
       
       <button class="btn btn-google" @click="handleLogin" :disabled="isLoggingIn">
         <Loader2 v-if="isLoggingIn" class="spin" :size="20" />
@@ -936,6 +972,60 @@ const linkSchoolToHab = async (schoolId: any, habId: any) => {
 </template>
 
 <style scoped>
+/* Toast Notifications */
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  font-size: 14px;
+  font-weight: 600;
+  animation: toastIn 0.3s ease;
+  pointer-events: auto;
+  max-width: 420px;
+}
+
+.toast.success { background: #065f46; color: #ecfdf5; }
+.toast.error { background: #991b1b; color: #fef2f2; }
+.toast.warning { background: #92400e; color: #fffbeb; }
+.toast.info { background: #1e40af; color: #eff6ff; }
+
+.toast-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(40px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Login Error */
+.login-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
 .nav-section {
   font-size: 11px;
   font-weight: 700;
