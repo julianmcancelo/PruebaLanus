@@ -627,32 +627,89 @@ const linkSchoolToHab = async (schoolId: any, habId: any) => {
 
   <!-- Pantalla de Login -->
   <div v-if="!currentUser" class="login-page">
-    <div class="login-card glass-card animate-fade">
-      <div class="login-logo">
-        <div class="logo-icon"><Database :size="48" /></div>
-        <h1>Lanus Digital</h1>
-      </div>
-      <p>Gestión Municipal de Transporte y Habilitaciones</p>
-      
-      <div v-if="isChecking" class="login-loading">
-        <Loader2 class="spin" :size="24" />
-        <span>Verificando sesión...</span>
-      </div>
-      
-      <template v-else>
-        <div v-if="authError" class="login-error">
-          {{ authError }}
+    <div class="login-bg-pattern"></div>
+    
+    <div class="login-container">
+      <!-- Left side - Branding -->
+      <div class="login-brand">
+        <div class="brand-content">
+          <div class="brand-logo">
+            <div class="logo-glow"></div>
+            <Database :size="40" />
+          </div>
+          <h1>Lanus Digital</h1>
+          <p class="brand-subtitle">Plataforma de Gestión Municipal</p>
+          <p class="brand-desc">Transporte, Habilitaciones e Inspecciones</p>
+          
+          <div class="brand-features">
+            <div class="feature-item">
+              <div class="feature-dot"></div>
+              <span>Registro de Personas y Vehículos</span>
+            </div>
+            <div class="feature-item">
+              <div class="feature-dot"></div>
+              <span>Escaneo Inteligente con IA</span>
+            </div>
+            <div class="feature-item">
+              <div class="feature-dot"></div>
+              <span>Generación de Documentos Oficiales</span>
+            </div>
+            <div class="feature-item">
+              <div class="feature-dot"></div>
+              <span>Inspecciones Técnicas</span>
+            </div>
+          </div>
         </div>
-        
-        <button class="btn btn-google" @click="handleLogin" :disabled="isLoggingIn">
-          <Loader2 v-if="isLoggingIn" class="spin" :size="20" />
-          <img v-else src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" />
-          <span>{{ isLoggingIn ? 'Redirigiendo a Google...' : 'Entrar con Google' }}</span>
-        </button>
-      </template>
-
-      <div class="login-footer">
-        <p>Sistema de uso restringido para personal autorizado.</p>
+      </div>
+      
+      <!-- Right side - Login Form -->
+      <div class="login-form-side">
+        <div class="login-card">
+          <div class="login-header">
+            <h2>Bienvenido</h2>
+            <p>Iniciá sesión para acceder al sistema</p>
+          </div>
+          
+          <div v-if="isChecking" class="login-state loading">
+            <div class="loading-spinner">
+              <Loader2 class="spin" :size="32" />
+            </div>
+            <span>Verificando sesión...</span>
+          </div>
+          
+          <template v-else>
+            <div v-if="authError" class="login-state error">
+              <div class="error-icon">
+                <AlertTriangle :size="24" />
+              </div>
+              <p>{{ authError }}</p>
+              <button class="btn btn-google" @click="handleLogin" :disabled="isLoggingIn">
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" />
+                <span>Reintentar</span>
+              </button>
+            </div>
+            
+            <template v-else>
+              <button class="btn btn-google" @click="handleLogin" :disabled="isLoggingIn">
+                <Loader2 v-if="isLoggingIn" class="spin" :size="20" />
+                <img v-else src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" />
+                <span>{{ isLoggingIn ? 'Redirigiendo...' : 'Continuar con Google' }}</span>
+              </button>
+              
+              <div class="login-secure">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <span>Conexión segura con Firebase</span>
+              </div>
+            </template>
+          </template>
+          
+          <div class="login-footer">
+            <p>Sistema de uso restringido para personal autorizado.</p>
+          </div>
+        </div>
       </div>
     </div>
   </div>
