@@ -1,5 +1,5 @@
 import { auth } from '../firebase';
-import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User, getRedirectResult } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { ref } from 'vue';
 
 const ALLOWED_EMAIL = 'jcancelo.dev@gmail.com';
@@ -21,6 +21,16 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
+// Check redirect result on mount
+getRedirectResult(auth).then((result) => {
+  if (result?.user && result.user.email !== ALLOWED_EMAIL) {
+    authError.value = `Acceso denegado. Solo ${ALLOWED_EMAIL} puede ingresar.`;
+    signOut(auth);
+  }
+}).catch((error) => {
+  console.error('Redirect result error:', error);
+});
+
 export const loginWithGoogle = async () => {
   authError.value = null;
   try {
@@ -34,13 +44,18 @@ export const loginWithGoogle = async () => {
   } catch (error: any) {
     const code = error?.code || '';
     if (code === 'auth/popup-blocked' || code === 'auth/cancelled-popup-request') {
-      authError.value = 'El popup fue bloqueado. Permití popups para este sitio e intentá de nuevo.';
+      authError.value = 'El popup fue bloqueado. Intentando redirección...';
+      try {
+        await signInWithRedirect(auth, provider);
+      } catch (redirectError: any) {
+        authError.value = `Error de redirección: ${redirectError?.message || 'Error desconocido'}`;
+      }
     } else if (code === 'auth/unauthorized-domain') {
-      authError.value = 'Dominio no autorizado en Firebase. Contactá al administrador.';
+      authError.value = 'Dominio no autorizado en Firebase. Agregá este dominio en Firebase Console → Authentication → Authorized domains.';
     } else if (code === 'auth/network-request-failed') {
       authError.value = 'Error de red. Verificá tu conexión a internet.';
     } else {
-      authError.value = `Error al iniciar sesión: ${error?.message || 'Error desconocido'}`;
+      authError.value = `Error: ${error?.message || 'Error desconocido'}`;
     }
     console.error('Login error:', error);
     throw error;
