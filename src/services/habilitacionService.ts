@@ -52,7 +52,7 @@ export async function extractHabilitacionData(imageBases64: string[]): Promise<H
           {
             type: 'text',
             text: `Extract these fields:
-            - nroExpediente (e.g. "4000-1234/2026" or similar)
+            - nroExpediente (Format it ALWAYS as "LETRA-NUMERO/YEAR", e.g. "G-107060/2026". If you see long formats like "1000-958499-R-2026-0", convert them to "R-958499/2026". Remove dots.)
             - titular (Name of the person)
             - idNumber (DNI/CUIT)
             - dominio (Vehicle plate or "Patente")

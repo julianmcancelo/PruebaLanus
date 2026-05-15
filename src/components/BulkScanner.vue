@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import { Upload, FileText, CheckCircle2, Loader2, AlertCircle, Trash2, Database, Car, Users, Filter } from 'lucide-vue-next';
 import { extractDniData } from '../services/dniService';
 import { extractTitleData } from '../services/titleService';
-import { savePerson, saveTitle, saveHabilitacion } from '../services/dbService';
+import { savePerson, saveTitle, saveHabilitacion, getAllSchools } from '../services/dbService';
 import { pdfToImages } from '../services/pdfService';
 
 const files = ref<File[]>([]);
@@ -77,22 +77,62 @@ const processFiles = async () => {
         const ExcelJS = await import('exceljs');
         const workbook = new ExcelJS.default.Workbook();
         await workbook.xlsx.load(await file.arrayBuffer());
-        const worksheet = workbook.worksheets[0];
-        
+        const worksheet = workbook.getWorksheet(1) || workbook.worksheets[0];
         if (!worksheet) throw new Error('No se encontró la hoja en el Excel');
 
+        const getVal = (cell: any) => {
+          const v = cell.value;
+          if (v === null || v === undefined) return '';
+          if (typeof v === 'object') {
+            if (v.richText) return v.richText.map((t: any) => t.text).join('');
+            if (v.result !== undefined) return v.result.toString();
+            if (v.text) return v.text;
+            return '';
+          }
+          return v.toString();
+        };
+
+        const rawExp = getVal(worksheet.getCell('C7'));
+        let cleanExp = rawExp.replace(/\./g, ''); // Remove dots
+        
+        // Match Long Format: 1000-958499-R-2026-0
+        const matchLong = cleanExp.match(/(\d+)-(\d+)-([A-Z])-(\d{4})-\d+/i);
+        // Match Short Format: A-106766/2026
+        const matchShort = cleanExp.match(/([A-Z])[-/]?(\d+)[-/]?(\d{4})/i);
+
+        if (matchLong) {
+          cleanExp = `${matchLong[3].toUpperCase()}-${matchLong[2]}/${matchLong[4]}`;
+        } else if (matchShort) {
+          cleanExp = `${matchShort[1].toUpperCase()}-${matchShort[2]}/${matchShort[3]}`;
+        }
+
+        const cleanField = (val: string) => {
+          if (!val) return '';
+          if (val.includes('-')) {
+            const parts = val.split('-');
+            return parts.slice(1).join('-').trim(); // Take everything after the first hyphen
+          }
+          return val.trim();
+        };
+
         const data = {
-          nroExpediente: worksheet.getCell('C7').value?.toString() || '',
-          nroLicencia: worksheet.getCell('G8').value?.toString() || '',
-          titular: worksheet.getCell('C14').value?.toString() || '',
-          idNumber: worksheet.getCell('C15').value?.toString() || '',
-          dominio: worksheet.getCell('G10').value?.toString() || '',
+          nroExpediente: cleanExp,
+          nroLicencia: getVal(worksheet.getCell('G8')),
+          titular: getVal(worksheet.getCell('C14')),
+          idNumber: getVal(worksheet.getCell('C15')),
+          domicilio: getVal(worksheet.getCell('C16')),
+          dominio: getVal(worksheet.getCell('G10')),
+          marca: cleanField(getVal(worksheet.getCell('G11'))),
+          modelo: getVal(worksheet.getCell('G12')),
+          anio: getVal(worksheet.getCell('G13')),
+          agencia: getVal(worksheet.getCell('G16')),
           tipoHabilitacion: 'Remis',
           timestamp: Date.now()
         };
 
-        if (!data.dominio || data.dominio === '---') {
-           results.value.push({ fileName: file.name, status: 'error', error: 'Excel vacío o sin dominio' });
+        // If at least we have expediente or dominio, we consider it valid
+        if (!data.dominio && !data.nroExpediente) {
+           results.value.push({ fileName: file.name, status: 'error', error: 'No se encontraron datos (Expediente o Dominio)' });
            continue;
         }
 
@@ -157,7 +197,21 @@ const saveAll = async () => {
         const result = await saveTitle(res.data);
         if (result.isDuplicate) dupCount++;
       } else if (res.type === 'habilitacion') {
-        const result = await saveHabilitacion(res.data);
+        const hData = { ...res.data };
+        
+        // Try to link agency if name is provided
+        if (hData.agencia) {
+          const allSchools = await getAllSchools();
+          const match = allSchools.find(s => 
+            s.nombre.toLowerCase().includes(hData.agencia.toLowerCase()) ||
+            hData.agencia.toLowerCase().includes(s.nombre.toLowerCase())
+          );
+          if (match) {
+            hData.idColegios = [match.id];
+          }
+        }
+        
+        const result = await saveHabilitacion(hData);
         if (result.isDuplicate) dupCount++;
       }
       count++;

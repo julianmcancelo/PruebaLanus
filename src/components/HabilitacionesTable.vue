@@ -2,7 +2,8 @@
 import { Trash2, ExternalLink, FileText, User, Car, Hash, Printer, ClipboardCheck, FileDown, AlertTriangle, FileSignature } from 'lucide-vue-next';
 
 defineProps<{
-  habilitaciones: any[]
+  habilitaciones: any[],
+  schools?: any[]
 }>();
 
 defineEmits(['delete', 'view', 'print', 'print-inspection', 'print-inspection-excel', 'generate-resolution']);
@@ -31,6 +32,11 @@ defineEmits(['delete', 'view', 'print', 'print-inspection', 'print-inspection-ex
                   <span v-if="hab.tipoHabilitacion" class="type-badge" :class="hab.tipoHabilitacion.toLowerCase()">
                     {{ hab.tipoHabilitacion }}
                   </span>
+                </div>
+                <div v-if="hab.idColegios?.length > 0" class="linked-entity-preview">
+                  <School :size="10" />
+                  <span>{{ schools?.find(s => String(s.id) === String(hab.idColegios[0]))?.nombre || '...' }}</span>
+                  <span v-if="hab.idColegios.length > 1" class="more-count">+{{ hab.idColegios.length - 1 }}</span>
                 </div>
               </div>
             </div>
@@ -124,6 +130,20 @@ defineEmits(['delete', 'view', 'print', 'print-inspection', 'print-inspection-ex
 .type-badge { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
 .type-badge.escolar { background: #fef3c7; color: #92400e; }
 .type-badge.remis { background: #dcfce7; color: #166534; }
+.linked-entity-preview { 
+  display: flex; 
+  align-items: center; 
+  gap: 4px; 
+  margin-top: 4px; 
+  font-size: 11px; 
+  color: var(--primary); 
+  font-weight: 600;
+  background: rgba(99, 102, 241, 0.05);
+  padding: 2px 8px;
+  border-radius: 6px;
+  width: fit-content;
+}
+.more-count { color: var(--text-muted); font-size: 10px; font-weight: 700; }
 .id-number { 
   font-weight: 700; 
   color: var(--text-main); 

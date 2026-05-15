@@ -36,6 +36,7 @@ import {
 } from './services/dbService';
 import { currentUser, loginWithGoogle, logout, authError, isChecking, isLoggingIn } from './services/authService';
 import Dashboard from './components/Dashboard.vue';
+import { runMaintenanceCleanup } from './utils/maintenance';
 
 const activeTab = ref('dashboard');
 const people = ref<any[]>([]);
@@ -437,17 +438,17 @@ const handleExportDB = async () => {
   }
 };
 
-const handleMigration = async () => {
-  if (!confirm('Esto copiará todos tus datos locales actuales (Dexie) a Firebase en la nube. ¿Deseas continuar?')) return;
+
+const handleMaintenance = async () => {
+  if (!confirm('Esto normalizará todos los expedientes, marcas y tipos de vehículos existentes. ¿Deseas continuar?')) return;
   
   isMigrating.value = true;
   try {
-    const localData = await exportLegacyDatabase();
-    await migrateToFirestore(localData);
-    showToast('¡Migración completada! Ahora el sistema usa Firebase.', 'success');
+    const results = await runMaintenanceCleanup();
+    showToast(`¡Limpieza completada! ${results.titlesCleaned} vehículos y ${results.habsCleaned} habilitaciones corregidas.`, 'success');
     await loadData();
   } catch (error: any) {
-    showToast(`Error en la migración: ${error.message}`, 'error');
+    showToast(`Error en la limpieza: ${error.message}`, 'error');
   } finally {
     isMigrating.value = false;
   }
@@ -572,6 +573,43 @@ const handleDownloadInspectionExcel = async (hab: any) => {
       // Linked Agency
       const agency = schools.value.find(s => hab.idColegios?.includes(s.id));
       worksheet.getCell('G16').value = agency ? agency.nombre : '---';
+
+      // Checklist Mapping (if an inspection exists for this dominio)
+      const lastInsp = inspections.value
+        .filter(i => i.dominio === hab.dominio)
+        .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())[0];
+
+      if (lastInsp && lastInsp.checklist) {
+        // We map common keywords to the Remis Excel rows (21 to 30)
+        const mapping = [
+          { row: 21, keywords: ['luces', 'faro', 'giro'] },
+          { row: 22, keywords: ['freno', 'pastilla'] },
+          { row: 23, keywords: ['neumatico', 'rueda', 'cubierta'] },
+          { row: 24, keywords: ['limpia', 'parabrisa'] },
+          { row: 25, keywords: ['espejo', 'retrovisor'] },
+          { row: 26, keywords: ['instrumental', 'veloci', 'tablero'] },
+          { row: 27, keywords: ['cinturon', 'seguridad'] },
+          { row: 28, keywords: ['matafuego', 'extintor'] },
+          { row: 29, keywords: ['kit', 'botiquin', 'emergencia'] },
+          { row: 30, keywords: ['mampara', 'divisoria'] }
+        ];
+
+        mapping.forEach(m => {
+          const item = lastInsp.checklist.find((cli: any) => 
+            m.keywords.some(kw => cli.label.toLowerCase().includes(kw))
+          );
+          if (item) {
+            const status = item.status?.toLowerCase();
+            if (status === 'bien') worksheet.getCell(`F${m.row}`).value = 'X';
+            else if (status === 'regul' || status === 'regular') worksheet.getCell(`G${m.row}`).value = 'X';
+            else if (status === 'malo' || status === 'mal') worksheet.getCell(`H${m.row}`).value = 'X';
+            
+            if (item.motivo) worksheet.getCell(`I${m.row}`).value = item.motivo;
+          }
+        });
+        
+        if (lastInsp.observaciones) worksheet.getCell('C31').value = lastInsp.observaciones;
+      }
 
     } else {
       // Standard Escolar Template Mapping
@@ -867,6 +905,9 @@ const linkSchoolToHab = async (schoolId: any, habId: any) => {
             <div class="header-actions">
               <input type="file" ref="fileInput" style="display: none" accept=".json" @change="handleFileUpload" />
               <button class="btn btn-secondary" @click="fileInput?.click()"><Upload :size="16" /> Importar</button>
+              <button class="btn btn-secondary" @click="handleMaintenance" :disabled="isMigrating">
+                <Scissors :size="16" /> Limpieza Masiva
+              </button>
               <button class="btn btn-primary" @click="handleMigration" :disabled="isMigrating">
                 <Loader2 v-if="isMigrating" class="spin" :size="16" />
                 <Zap v-else :size="16" /> Sincronizar Nube
@@ -943,6 +984,7 @@ const linkSchoolToHab = async (schoolId: any, habId: any) => {
           </div>
           <HabilitacionesTable 
             :habilitaciones="filteredHabilitaciones" 
+            :schools="schools"
             @delete="deleteHabilitacion"
             @view="selectedHabilitacion = $event"
             @print="handlePrintHabilitacion"

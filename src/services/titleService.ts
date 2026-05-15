@@ -49,9 +49,9 @@ export async function extractTitleData(imageBases64: string[]): Promise<TitleDat
               - controlWeb (Número de control web)
               - titular (Nombre completo del titular)
               - cuilTitular (CUIL or CUIT of the owner, include all digits)
-              - marca
+              - marca (Name only. If it contains a code before a hyphen, e.g. "24-FIAT", return only "FIAT")
               - modelo
-              - tipo
+              - tipo (Vehicle type only. If it contains a code before a hyphen, e.g. "ZZ-OMNIBUS", return only "OMNIBUS")
               - motor (Número de motor)
               - chasis (Número de chasis)
               - anioFabricacion (Año de fabricación)
