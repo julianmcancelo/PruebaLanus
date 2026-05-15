@@ -128,7 +128,8 @@ const filteredHabilitaciones = computed(() => {
   return habilitaciones.value.filter(h => 
     h.nroExpediente.toLowerCase().includes(q) || 
     h.titular.toLowerCase().includes(q) || 
-    (h.idNumber && h.idNumber.includes(q))
+    (h.idNumber && h.idNumber.includes(q)) ||
+    (h.tipoHabilitacion && h.tipoHabilitacion.toLowerCase().includes(q))
   );
 });
 
@@ -873,16 +874,23 @@ const linkSchoolToHab = async (schoolId: any, habId: any) => {
             </div>
           </div>
 
-<<<<<<< HEAD
-          <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 24px;">
-            <TitleScanner @title-extracted="handleTitleAdded" />
-            <div class="glass-card" style="padding: 24px;">
-              <h3>Estado del Sistema</h3>
-              <div class="db-stats" style="margin: 16px 0 24px;">
-                <div class="db-stat"><strong>{{ people.length }}</strong> Personas</div>
-                <div class="db-stat"><strong>{{ titles.length }}</strong> Títulos</div>
-                <div class="db-stat"><strong>{{ habilitaciones.length }}</strong> Habilitaciones</div>
+          <div class="glass-card p-32">
+            <div class="db-status">
+              <div class="db-icon"><Database :size="48" /></div>
+              <div class="db-info">
+                <h3>Estado del Sistema</h3>
+                <p>Tu base de datos contiene:</p>
+                <div class="db-stats">
+                  <div class="db-stat"><strong>{{ people.length }}</strong> Personas</div>
+                  <div class="db-stat"><strong>{{ titles.length }}</strong> Títulos</div>
+                  <div class="db-stat"><strong>{{ habilitaciones.length }}</strong> Habilitaciones</div>
+                  <div class="db-stat"><strong>{{ schools.length }}</strong> Entidades</div>
+                  <div class="db-stat"><strong>{{ inspections.length }}</strong> Inspecciones</div>
+                </div>
               </div>
+            </div>
+            
+            <div style="margin-top: 32px;">
               <button class="btn btn-secondary" style="width: 100%; justify-content: center;" @click="handleExportDB">
                 <Download :size="16" /> Exportar Copia Local
               </button>
@@ -905,21 +913,6 @@ const linkSchoolToHab = async (schoolId: any, habId: any) => {
                 <button class="btn btn-primary" @click="selectedTitle = {}">
                   <Plus :size="16" /> Nuevo Título
                 </button>
-=======
-          <div class="glass-card p-32">
-            <div class="db-status">
-              <div class="db-icon"><Database :size="48" /></div>
-              <div class="db-info">
-                <h3>Estado del Sistema</h3>
-                <p>Tu base de datos contiene:</p>
-                <div class="db-stats">
-                  <div class="db-stat"><strong>{{ people.length }}</strong> Personas</div>
-                  <div class="db-stat"><strong>{{ titles.length }}</strong> Títulos</div>
-                  <div class="db-stat"><strong>{{ habilitaciones.length }}</strong> Habilitaciones</div>
-                  <div class="db-stat"><strong>{{ schools.length }}</strong> Entidades</div>
-                  <div class="db-stat"><strong>{{ inspections.length }}</strong> Inspecciones</div>
-                </div>
->>>>>>> de0fe78 (Fix PDF worker, update Prisma schema for habilitaciones and entities, and improve AI extraction for Remis/Escolar types)
               </div>
             </div>
             <TitlesTable :titles="filteredTitles" @delete="deleteTitle" @view="selectedTitle = $event" />
@@ -971,15 +964,9 @@ const linkSchoolToHab = async (schoolId: any, habId: any) => {
         <!-- Colegios -->
         <section v-if="activeTab === 'school_list'">
           <div class="section-header">
-<<<<<<< HEAD
             <div class="title-group">
-              <h2>Colegios</h2>
-              <p>Gestión de establecimientos.</p>
-=======
-            <div>
-              <h1>Entidades Vinculadas</h1>
+              <h2>Entidades Vinculadas</h2>
               <p>Gestiona los certificados de colegios o remiserías y su vinculación con transportistas.</p>
->>>>>>> de0fe78 (Fix PDF worker, update Prisma schema for habilitaciones and entities, and improve AI extraction for Remis/Escolar types)
             </div>
             <button class="btn btn-primary" @click="activeTab = 'school_scan'"><Plus :size="16" /> Escanear</button>
           </div>
