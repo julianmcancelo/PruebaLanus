@@ -14,6 +14,8 @@ const isDragging = ref(false);
 const isProcessing = ref(false);
 const error = ref<string | null>(null);
 
+const extractedResult = ref<any>(null);
+
 const processFiles = async (files: FileList | File[]) => {
   isProcessing.value = true;
   error.value = null;
@@ -43,7 +45,7 @@ const processFiles = async (files: FileList | File[]) => {
       }
 
       const extractedData = await extractInspectionData(images);
-      emit('inspection-extracted', extractedData);
+      extractedResult.value = extractedData;
     }
   } catch (err: any) {
     console.error(err);
@@ -51,6 +53,17 @@ const processFiles = async (files: FileList | File[]) => {
   } finally {
     isProcessing.value = false;
   }
+};
+
+const confirmSave = () => {
+  if (extractedResult.value) {
+    emit('inspection-extracted', extractedResult.value);
+    extractedResult.value = null;
+  }
+};
+
+const cancelResult = () => {
+  extractedResult.value = null;
 };
 
 const handleDrop = (e: DragEvent) => {
@@ -80,6 +93,7 @@ const fileToBase64 = (file: File): Promise<string> => {
 <template>
   <div class="scanner-container animate-fade">
     <div 
+      v-if="!extractedResult"
       class="drop-zone"
       :class="{ dragging: isDragging, processing: isProcessing }"
       @dragover.prevent="isDragging = true"
@@ -101,7 +115,7 @@ const fileToBase64 = (file: File): Promise<string> => {
           <FileText class="icon-bg" :size="64" />
           <Upload class="icon-main" :size="32" />
         </div>
-        <h3>Cargar Acta de Inspección Municipal</h3>
+        <h3>Cargar Acta de Inspección (Escolar/Remis)</h3>
         <p>Arrastra el PDF del acta o haz clic para subir</p>
         <div class="format-badges">
           <span>PDF</span>
@@ -114,6 +128,57 @@ const fileToBase64 = (file: File): Promise<string> => {
         <Loader2 class="spinner" :size="48" />
         <h3>Analizando Acta Técnica...</h3>
         <p>La IA está extrayendo el checklist y los datos del vehículo</p>
+      </div>
+    </div>
+
+    <div v-if="extractedResult" class="extracted-preview animate-fade">
+      <div class="preview-header">
+        <CheckCircle :size="24" class="success-icon" />
+        <h3>Verificar Acta de Inspección</h3>
+      </div>
+      
+      <div class="preview-grid">
+        <div class="field">
+          <label>Dominio</label>
+          <input v-model="extractedResult.dominio" class="preview-input" />
+        </div>
+        <div class="field">
+          <label>Fecha</label>
+          <input v-model="extractedResult.fecha" class="preview-input" type="date" />
+        </div>
+        <div class="field">
+          <label>Resultado</label>
+          <input v-model="extractedResult.resultado" class="preview-input" />
+        </div>
+        <div class="field">
+          <label>Tipo de Inspección</label>
+          <div class="type-selector">
+            <button 
+              :class="{ active: extractedResult.tipo === 'Escolar' }"
+              @click="extractedResult.tipo = 'Escolar'"
+            >Escolar</button>
+            <button 
+              :class="{ active: extractedResult.tipo === 'Remis' }"
+              @click="extractedResult.tipo = 'Remis'"
+            >Remis</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="checklist-preview">
+        <h4>Resumen de Checklist ({{ extractedResult.checklist?.length || 0 }} ítems)</h4>
+        <div class="checklist-mini-grid">
+          <div v-for="(item, idx) in extractedResult.checklist?.slice(0, 6)" :key="idx" class="mini-item">
+            <span class="dot" :class="item.status.toLowerCase()"></span>
+            <span class="label">{{ item.label }}</span>
+          </div>
+          <div v-if="extractedResult.checklist?.length > 6" class="mini-more">...y {{ extractedResult.checklist.length - 6 }} más</div>
+        </div>
+      </div>
+
+      <div class="preview-actions">
+        <button class="btn-secondary" @click="cancelResult">Descartar</button>
+        <button class="btn-primary" @click="confirmSave">Confirmar y Guardar Inspección</button>
       </div>
     </div>
 
@@ -136,7 +201,32 @@ const fileToBase64 = (file: File): Promise<string> => {
 .icon-bg { color: rgba(255, 255, 255, 0.05); }
 .icon-main { position: absolute; color: var(--primary); }
 
-.processing-content { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+.extracted-preview { background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 24px; padding: 32px; backdrop-filter: blur(10px); }
+.preview-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+.success-icon { color: var(--accent); }
+.preview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+.field { display: flex; flex-direction: column; gap: 8px; }
+.field label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.preview-input { background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: 12px; padding: 12px 16px; color: white; font-size: 15px; }
+
+.type-selector { display: flex; gap: 8px; }
+.type-selector button { flex: 1; padding: 10px; border-radius: 10px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.05); color: var(--text-muted); font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.type-selector button.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+.checklist-preview { background: rgba(0,0,0,0.2); border-radius: 16px; padding: 20px; margin-bottom: 24px; margin-top: 24px; }
+.checklist-preview h4 { font-size: 13px; font-weight: 700; color: var(--text-muted); margin-bottom: 12px; text-transform: uppercase; }
+.checklist-mini-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.mini-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: white; }
+.dot { width: 8px; height: 8px; border-radius: 50%; }
+.dot.bien { background: var(--accent); }
+.dot.regul { background: var(--warning); }
+.dot.malo { background: var(--danger); }
+.mini-more { grid-column: span 2; font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+.preview-actions { display: flex; justify-content: flex-end; gap: 12px; }
+.btn-primary { background: var(--primary); color: white; border: none; padding: 12px 24px; border-radius: 12px; font-weight: 600; cursor: pointer; }
+.btn-secondary { background: transparent; color: white; border: 1px solid var(--glass-border); padding: 12px 24px; border-radius: 12px; font-weight: 600; cursor: pointer; }
+
 .spinner { color: var(--primary); animation: spin 2s linear infinite; }
 
 h3 { font-size: 20px; font-weight: 700; color: white; margin: 0; }

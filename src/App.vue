@@ -529,33 +529,66 @@ const handlePrintBlankInspection = (hab: any) => {
 const handleDownloadInspectionExcel = async (hab: any) => {
   const title = getLinkedTitleByHab(hab.dominio);
   const person = getLinkedPersonByHab(hab);
+  const isRemis = hab.tipoHabilitacion?.toLowerCase() === 'remis';
   
+  const templatePath = isRemis 
+    ? '/templates/HABILITACIONES 2026 (1).xlsx'
+    : '/templates/ActaInspeccionTemplate.xlsx';
+
   try {
-    const response = await fetch('/templates/ActaInspeccionTemplate.xlsx');
+    const response = await fetch(templatePath);
     if (!response.ok) throw new Error('No se pudo cargar la plantilla de Excel');
     
     const arrayBuffer = await response.arrayBuffer();
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(arrayBuffer);
-    const worksheet = workbook.getWorksheet(1);
+    const worksheet = workbook.worksheets[0];
 
     if (!worksheet) throw new Error('No se encontró la hoja en el Excel');
 
-    // Fill Data - preserving styles by updating values directly
-    worksheet.getCell('B4').value = hab.nroExpediente || '---';
-    worksheet.getCell('F4').value = hab.nroLicencia || '---';
-    
-    worksheet.getCell('B6').value = person ? `${person.surname}, ${person.names}` : (hab.titular || '---');
-    worksheet.getCell('B7').value = person?.idNumber || hab.idNumber || '---';
-    worksheet.getCell('B8').value = person?.address || '---';
-    worksheet.getCell('B9').value = hab.anioHabilitacion || new Date().getFullYear().toString();
-    worksheet.getCell('B10').value = person?.phone || hab.phone || '---';
+    if (isRemis) {
+      // Remis Template Mapping
+      worksheet.getCell('H4').value = new Date().toLocaleDateString('es-AR');
+      worksheet.getCell('C7').value = hab.nroExpediente || '---';
+      worksheet.getCell('G8').value = hab.nroLicencia || '---';
+      
+      const fullName = person ? `${person.surname}, ${person.names}` : (hab.titular || '---');
+      worksheet.getCell('C10').value = fullName; // Quien se presenta
+      worksheet.getCell('C11').value = person?.idNumber || hab.idNumber || '---';
+      worksheet.getCell('C12').value = person?.address || '---';
+      
+      worksheet.getCell('C14').value = fullName; // Titular
+      worksheet.getCell('C15').value = person?.idNumber || hab.idNumber || '---';
+      worksheet.getCell('C16').value = person?.address || '---';
 
-    worksheet.getCell('F6').value = hab.dominio || '---';
-    worksheet.getCell('F7').value = title?.marca || '---';
-    worksheet.getCell('F8').value = title?.modelo || '---';
-    worksheet.getCell('F9').value = title?.anioModelo || title?.anioFabricacion || '---';
-    worksheet.getCell('F10').value = title?.tipo || 'TRANSPORTE DE PASAJEROS';
+      worksheet.getCell('G10').value = hab.dominio || '---';
+      worksheet.getCell('G11').value = title?.marca || '---';
+      worksheet.getCell('G12').value = title?.modelo || '---';
+      worksheet.getCell('G13').value = title?.anioModelo || '---';
+      worksheet.getCell('G14').value = title?.fechaInscripcion || '---';
+      worksheet.getCell('G15').value = title?.tipo || 'REMIS';
+      
+      // Linked Agency
+      const agency = schools.value.find(s => hab.idColegios?.includes(s.id));
+      worksheet.getCell('G16').value = agency ? agency.nombre : '---';
+
+    } else {
+      // Standard Escolar Template Mapping
+      worksheet.getCell('B4').value = hab.nroExpediente || '---';
+      worksheet.getCell('F4').value = hab.nroLicencia || '---';
+      
+      worksheet.getCell('B6').value = person ? `${person.surname}, ${person.names}` : (hab.titular || '---');
+      worksheet.getCell('B7').value = person?.idNumber || hab.idNumber || '---';
+      worksheet.getCell('B8').value = person?.address || '---';
+      worksheet.getCell('B9').value = hab.anioHabilitacion || new Date().getFullYear().toString();
+      worksheet.getCell('B10').value = person?.phone || hab.phone || '---';
+
+      worksheet.getCell('F6').value = hab.dominio || '---';
+      worksheet.getCell('F7').value = title?.marca || '---';
+      worksheet.getCell('F8').value = title?.modelo || '---';
+      worksheet.getCell('F9').value = title?.anioModelo || title?.anioFabricacion || '---';
+      worksheet.getCell('F10').value = title?.tipo || 'TRANSPORTE DE PASAJEROS';
+    }
 
     // Generate and Download
     const buffer = await workbook.xlsx.writeBuffer();
@@ -563,7 +596,7 @@ const handleDownloadInspectionExcel = async (hab: any) => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Acta_Inspeccion_${hab.dominio}.xlsx`;
+    a.download = `Acta_Inspeccion_${isRemis ? 'REMIS_' : ''}${hab.dominio}.xlsx`;
     a.click();
     window.URL.revokeObjectURL(url);
   } catch (error: any) {
@@ -576,9 +609,7 @@ const handleGenerateResolution = async (hab: any) => {
   const person = getLinkedPersonByHab(hab);
   const title = getLinkedTitleByHab(hab.dominio);
   
-  const hasSchools = hab.idColegios && hab.idColegios.length > 0;
-  const isEscolarByTitle = title?.tipo?.toLowerCase().includes('escolar');
-  const type = (hasSchools || isEscolarByTitle) ? 'escolar' : 'remis';
+  const type = hab.tipoHabilitacion?.toLowerCase() === 'remis' ? 'remis' : 'escolar';
   
   try {
     await generateResolutionDOCX(type as any, { hab, person, title });

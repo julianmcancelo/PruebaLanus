@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import { Upload, FileText, CheckCircle2, Loader2, AlertCircle, Trash2, Database, Car, Users, Filter } from 'lucide-vue-next';
 import { extractDniData } from '../services/dniService';
 import { extractTitleData } from '../services/titleService';
-import { savePerson, saveTitle } from '../services/dbService';
+import { savePerson, saveTitle, saveHabilitacion } from '../services/dbService';
 import { pdfToImages } from '../services/pdfService';
 
 const files = ref<File[]>([]);
@@ -11,7 +11,7 @@ const results = ref<any[]>([]);
 const isProcessing = ref(false);
 const progress = ref(0);
 const currentFile = ref('');
-const selectedType = ref<'auto' | 'dni' | 'title'>('auto');
+const selectedType = ref<'auto' | 'dni' | 'title' | 'remis_excel'>('auto');
 
 const emit = defineEmits(['saved']);
 
@@ -73,6 +73,33 @@ const processFiles = async () => {
     progress.value = Math.round((i / files.value.length) * 100);
 
     try {
+      if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+        const ExcelJS = await import('exceljs');
+        const workbook = new ExcelJS.default.Workbook();
+        await workbook.xlsx.load(await file.arrayBuffer());
+        const worksheet = workbook.worksheets[0];
+        
+        if (!worksheet) throw new Error('No se encontró la hoja en el Excel');
+
+        const data = {
+          nroExpediente: worksheet.getCell('C7').value?.toString() || '',
+          nroLicencia: worksheet.getCell('G8').value?.toString() || '',
+          titular: worksheet.getCell('C14').value?.toString() || '',
+          idNumber: worksheet.getCell('C15').value?.toString() || '',
+          dominio: worksheet.getCell('G10').value?.toString() || '',
+          tipoHabilitacion: 'Remis',
+          timestamp: Date.now()
+        };
+
+        if (!data.dominio || data.dominio === '---') {
+           results.value.push({ fileName: file.name, status: 'error', error: 'Excel vacío o sin dominio' });
+           continue;
+        }
+
+        results.value.push({ fileName: file.name, type: 'habilitacion', data, status: 'success' });
+        continue;
+      }
+
       let base64s: string[] = [];
       
       if (file.type === 'application/pdf') {
@@ -129,6 +156,9 @@ const saveAll = async () => {
       } else if (res.type === 'title') {
         const result = await saveTitle(res.data);
         if (result.isDuplicate) dupCount++;
+      } else if (res.type === 'habilitacion') {
+        const result = await saveHabilitacion(res.data);
+        if (result.isDuplicate) dupCount++;
       }
       count++;
     }
@@ -171,6 +201,9 @@ const saveAll = async () => {
           <label class="option-pill" :class="{ active: selectedType === 'title' }">
             <input type="radio" v-model="selectedType" value="title" /> Carpeta de Títulos
           </label>
+          <label class="option-pill" :class="{ active: selectedType === 'remis_excel' }">
+            <input type="radio" v-model="selectedType" value="remis_excel" /> Excel de Remises
+          </label>
         </div>
       </div>
 
@@ -180,7 +213,7 @@ const saveAll = async () => {
         @dragover.prevent
         @drop.prevent="onFileDrop"
       >
-        <input type="file" ref="fileInput" multiple @change="onFileSelect" style="display: none" accept="image/*" />
+        <input type="file" ref="fileInput" multiple @change="onFileSelect" style="display: none" accept="image/*,application/pdf,.xlsx,.xls" />
         <div class="drop-icon"><Upload :size="48" /></div>
         <h3>Arrastra archivos aquí o haz clic</h3>
         <p>Se recomienda subir fotos claras de una sola cara del documento</p>
@@ -234,13 +267,14 @@ const saveAll = async () => {
             <td><div class="file-cell"><FileText :size="14" /> {{ res.fileName }}</div></td>
             <td>
               <div v-if="res.status === 'success'" class="type-badge" :class="res.type">
-                {{ res.type === 'person' ? 'DNI' : 'Título' }}
+                {{ res.type === 'person' ? 'DNI' : (res.type === 'title' ? 'Título' : 'Habilitación') }}
               </div>
             </td>
             <td>
               <div v-if="res.status === 'success'" class="data-preview">
                 <span v-if="res.type === 'person'">{{ res.data.surname }}, {{ res.data.names }}</span>
-                <span v-else>{{ res.data.dominio }} ({{ res.data.marca }})</span>
+                <span v-else-if="res.type === 'title'">{{ res.data.dominio }} ({{ res.data.marca }})</span>
+                <span v-else-if="res.type === 'habilitacion'">{{ res.data.dominio }} ({{ res.data.titular }})</span>
               </div>
               <div v-else class="error-text">{{ res.error }}</div>
             </td>

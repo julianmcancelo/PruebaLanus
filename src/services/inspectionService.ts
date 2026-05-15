@@ -3,6 +3,7 @@ import axios from 'axios';
 export interface InspectionData {
   dominio: string;
   fecha: string;
+  tipo: 'Escolar' | 'Remis';
   resultado: string;
   observaciones: string;
   checklist: any[];
@@ -25,10 +26,11 @@ export async function extractInspectionData(imageBases64: string[]): Promise<Ins
       messages: [
         {
           role: 'system',
-          content: `You are a precise OCR assistant for Municipal Vehicle Inspection forms (Certificado de Verificación de Transporte - Lanús).
+          content: `You are a precise OCR assistant for Municipal Vehicle Inspection forms from Lanús (Certificado de Verificación de Transporte).
           Extract all data from the form.
           
-          Important: The checklist items correspond to specific rows in the form.
+          Important: Determine if the inspection is for "Escolar" or "Remis".
+          Extract the checklist items according to the form type.
           For each row, determine if it is "Bien", "Regul", or "Malo".
           
           Respond ONLY with a JSON object.`
@@ -41,27 +43,15 @@ export async function extractInspectionData(imageBases64: string[]): Promise<Ins
               text: `Extract these fields:
               - dominio (Vehicle plate)
               - fecha (Inspection date)
+              - tipo (Determine if "Escolar" or "Remis")
               - titularName (Owner name)
-              - idNumber (Owner DNI)
+              - idNumber (Owner DNI/CUIT)
               - nroExpediente (File number)
               - nroLicencia (License number)
-              - resultado (Determine from overall status, usually 'APROBADO' if everything is 'Bien')
+              - resultado (Overall status, e.g., 'APROBADO')
               - observaciones (General comments)
               - checklist: Array of objects { id, label, status ('Bien', 'Regul', 'Malo'), motivo }.
-                Items to extract:
-                1. Pta. accionada cond. para desc./ asc. (Puerta derecha)
-                2. Pta. accionada cond. para desc./ asc. (Puerta izquierda)
-                3. Salida de Emer. indep. de la plataf. asc. / desc.
-                4. Vent. Vidrio Temp. / inastillable
-                5. Pisos rec. con mat. Antideslizables
-                6. Dimens. de Banquetas
-                7. Asientos: Fijos, Acolchados, Estructu. metalicas
-                8. Puerta Izquierda de la Carroceria
-                9. Cinturones de Seguridad
-                10. Cabezales o apoya Cabeza
-                11. Espacios Libres
-                12. Pintura (Carroceria baja y capot naranja)
-                13. Leyenda de "Escolares" o "Niños"
+                Extract the items listed in the form. If it is a Remis, extract the relevant safety and technical items (e.g., Luces, Frenos, Neumáticos, Matafuegos, etc.).
               
               Return a JSON object.`
             },

@@ -93,9 +93,22 @@ const linkedSchools = computed(() => {
               <FileText :size="28" />
             </div>
             <div class="exp-info">
-              <h2 v-if="!isEditing">{{ hab.nroExpediente || 'Sin Expediente' }}</h2>
-              <input v-else v-model="editedHab.nroExpediente" class="input-field" placeholder="N° Expediente" />
-              <span class="exp-type">{{ hab.tipoTramite || 'Habilitación de Transporte' }}</span>
+              <template v-if="!isEditing">
+                <h2>{{ hab.nroExpediente || 'Sin Expediente' }}</h2>
+                <div class="exp-type-row">
+                  <span class="exp-type">{{ hab.tipoTramite || 'Habilitación' }}</span>
+                  <span v-if="hab.tipoHabilitacion" class="type-badge-inline" :class="hab.tipoHabilitacion.toLowerCase()">
+                    {{ hab.tipoHabilitacion }}
+                  </span>
+                </div>
+              </template>
+              <template v-else>
+                <input v-model="editedHab.nroExpediente" class="input-field-header" placeholder="N° Expediente" />
+                <div class="type-toggle-group">
+                  <button :class="{ active: editedHab.tipoHabilitacion === 'Escolar' }" @click="editedHab.tipoHabilitacion = 'Escolar'">Escolar</button>
+                  <button :class="{ active: editedHab.tipoHabilitacion === 'Remis' }" @click="editedHab.tipoHabilitacion = 'Remis'">Remis</button>
+                </div>
+              </template>
             </div>
           </div>
           <div class="header-actions">
@@ -301,15 +314,17 @@ const linkedSchools = computed(() => {
         <div class="data-section">
           <div class="section-header">
             <div class="section-icon indigo">
-              <School :size="18" />
+              <School v-if="hab.tipoHabilitacion !== 'Remis'" :size="18" />
+              <Building2 v-else :size="18" />
             </div>
-            <h3>Colegios Vinculados</h3>
+            <h3>{{ hab.tipoHabilitacion === 'Remis' ? 'Agencias Vinculadas' : 'Colegios Vinculados' }}</h3>
           </div>
           
           <div v-if="!isEditing" class="schools-list">
             <div v-if="linkedSchools.length > 0" class="school-item" v-for="school in linkedSchools" :key="school.id">
               <div class="school-icon">
-                <School :size="16" />
+                <School v-if="school.tipo !== 'Remiseria'" :size="16" />
+                <Building2 v-else :size="16" />
               </div>
               <div class="school-info">
                 <span class="school-name">{{ school.nombre }}</span>
@@ -317,8 +332,9 @@ const linkedSchools = computed(() => {
               </div>
             </div>
             <div v-else class="empty-state">
-              <School :size="24" />
-              <span>Sin colegios vinculados</span>
+              <Building2 v-if="hab.tipoHabilitacion === 'Remis'" :size="24" />
+              <School v-else :size="24" />
+              <span>Sin {{ hab.tipoHabilitacion === 'Remis' ? 'agencias' : 'colegios' }} vinculados</span>
             </div>
           </div>
           
@@ -430,13 +446,17 @@ const linkedSchools = computed(() => {
   margin: 0;
 }
 
-.exp-type {
-  font-size: 12px;
-  opacity: 0.8;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 600;
-}
+.exp-type-row { display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.type-badge-inline { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 6px; text-transform: uppercase; background: rgba(255,255,255,0.2); }
+.type-badge-inline.escolar { background: #fbbf24; color: #78350f; }
+.type-badge-inline.remis { background: #22c55e; color: white; }
+
+.input-field-header { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 8px 12px; border-radius: 10px; font-size: 18px; font-weight: 700; width: 240px; }
+.input-field-header::placeholder { color: rgba(255,255,255,0.5); }
+
+.type-toggle-group { display: flex; gap: 8px; margin-top: 8px; }
+.type-toggle-group button { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: white; padding: 4px 12px; border-radius: 8px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.type-toggle-group button.active { background: white; color: #4f46e5; border-color: white; }
 
 .header-actions {
   display: flex;

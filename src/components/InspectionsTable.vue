@@ -33,7 +33,12 @@ const getResultClass = (res: string) => {
               <div class="person-avatar"><Calendar :size="16" /></div>
               <div>
                 <div class="name">{{ ins.fecha }}</div>
-                <div class="gender">Técnica</div>
+                <div class="type-row">
+                  <span class="gender">Técnica</span>
+                  <span v-if="ins.tipo" class="type-badge-sm" :class="ins.tipo.toLowerCase()">
+                    {{ ins.tipo }}
+                  </span>
+                </div>
               </div>
             </div>
           </td>
@@ -79,7 +84,11 @@ const getResultClass = (res: string) => {
 .person-info { display: flex; align-items: center; gap: 12px; }
 .person-avatar { width: 32px; height: 32px; background: rgba(99, 102, 241, 0.1); color: var(--primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; }
 .name { font-weight: 600; color: white; margin-bottom: 2px; }
+.type-row { display: flex; align-items: center; gap: 6px; }
 .gender { font-size: 12px; color: var(--text-muted); }
+.type-badge-sm { font-size: 9px; font-weight: 800; padding: 1px 6px; border-radius: 4px; text-transform: uppercase; }
+.type-badge-sm.escolar { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }
+.type-badge-sm.remis { background: rgba(34, 197, 94, 0.2); color: #22c55e; }
 .id-number { display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--primary); }
 .badge { font-size: 10px; font-weight: 800; padding: 4px 8px; border-radius: 6px; }
 .badge-success { background: rgba(16, 185, 129, 0.2); color: #10b981; }
