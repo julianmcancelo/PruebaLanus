@@ -148,10 +148,15 @@ app.get('/api/inspecciones', async (req, res) => {
 
 app.post('/api/inspecciones', async (req, res) => {
   const data = req.body;
-  const inspection = await prisma.inspecciones.create({
-    data: { ...data, timestamp: BigInt(Date.now()) }
-  });
-  res.json(inspection);
+  try {
+    const inspection = await prisma.inspecciones.create({
+      data: { ...data, timestamp: BigInt(Date.now()) }
+    });
+    res.json(inspection);
+  } catch (error: any) {
+    console.error('Error creating inspection:', error);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.get('/api/inspecciones/:dominio', async (req, res) => {

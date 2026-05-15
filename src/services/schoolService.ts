@@ -1,16 +1,17 @@
 import axios from 'axios';
 
-export interface SchoolExtractedData {
+export interface EntityExtractedData {
   nombre: string;
   domicilio: string;
   idNumberTitular: string;
   dominio: string;
+  tipo: 'Colegio' | 'Remiseria';
   observaciones: string;
 }
 
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 
-export async function extractSchoolData(imageBases64: string[]): Promise<SchoolExtractedData> {
+export async function extractEntityData(imageBases64: string[]): Promise<EntityExtractedData> {
   const images = imageBases64.map(base64 => ({
     type: 'image_url',
     image_url: { url: `data:image/jpeg;base64,${base64}` }
@@ -23,7 +24,7 @@ export async function extractSchoolData(imageBases64: string[]): Promise<SchoolE
       messages: [
         {
           role: 'system',
-          content: 'You are a highly precise OCR expert for Argentine municipal documents. Your task is to extract exact information from School Transportation Certificates (Certificados de Transporte Escolar) from Lanús.'
+          content: 'You are a highly precise OCR expert for Argentine municipal documents. Your task is to extract exact information from transportation certificates (Transporte Escolar or Remis) from Lanús.'
         },
         {
           role: 'user',
@@ -31,11 +32,12 @@ export async function extractSchoolData(imageBases64: string[]): Promise<SchoolE
             {
               type: 'text',
               text: `Extract these fields:
-              - nombre (Name of the School/Colegio)
-              - domicilio (Address of the school)
+              - nombre (Name of the School/Colegio or Remisería/Agencia)
+              - domicilio (Address of the school or agency)
               - idNumberTitular (DNI/CUIT of the transporter mentioned)
               - dominio (Vehicle plate mentioned in the certificate)
-              - observaciones (Any other relevant data like year or period)
+              - tipo (Determine if it is "Colegio" or "Remiseria")
+              - observaciones (Any other relevant data)
               
               Return ONLY a JSON object with these keys.`
             },
@@ -54,7 +56,7 @@ export async function extractSchoolData(imageBases64: string[]): Promise<SchoolE
     }
   );
 
-  return JSON.parse(response.data.choices[0].message.content) as SchoolExtractedData;
+  return JSON.parse(response.data.choices[0].message.content) as EntityExtractedData;
 }
 
 export async function enrichSchoolData(schoolName: string): Promise<{ domicilio?: string; telefono?: string }> {

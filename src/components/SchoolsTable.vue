@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Trash2, FolderOpen, School, User, Car, Hash } from 'lucide-vue-next';
+import { Trash2, FolderOpen, School, Building2, User, Car, Hash } from 'lucide-vue-next';
 
 const props = defineProps<{
   schools: any[],
@@ -22,7 +22,7 @@ const getHabilitacionesForSchool = (schoolId: any) => {
     <table class="data-table">
       <thead>
         <tr>
-          <th>Colegio</th>
+          <th>Entidad</th>
           <th>Transportistas Vinculados</th>
           <th>Unidades (Dominios)</th>
           <th>Acciones</th>
@@ -32,7 +32,10 @@ const getHabilitacionesForSchool = (schoolId: any) => {
         <tr v-for="school in schools" :key="school.id" class="person-row">
           <td>
             <div class="person-info">
-              <div class="person-avatar"><School :size="16" /></div>
+              <div class="person-avatar">
+                <School v-if="!school.tipo || school.tipo === 'Colegio'" :size="16" />
+                <Building2 v-else :size="16" />
+              </div>
               <div>
                 <div class="name">{{ school.nombre }}</div>
                 <div class="gender">{{ school.domicilio || 'Sin dirección' }}</div>

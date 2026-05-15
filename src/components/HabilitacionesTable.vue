@@ -26,7 +26,12 @@ defineEmits(['delete', 'view', 'print', 'print-inspection', 'print-inspection-ex
               <div class="person-avatar"><FileText :size="16" /></div>
               <div>
                 <div class="name">{{ hab.nroExpediente }}</div>
-                <div class="gender">{{ hab.tipoTramite || 'Habilitación' }}</div>
+                <div class="gender-row">
+                  <span class="gender">{{ hab.tipoTramite || 'Habilitación' }}</span>
+                  <span v-if="hab.tipoHabilitacion" class="type-badge" :class="hab.tipoHabilitacion.toLowerCase()">
+                    {{ hab.tipoHabilitacion }}
+                  </span>
+                </div>
               </div>
             </div>
           </td>
@@ -114,7 +119,11 @@ defineEmits(['delete', 'view', 'print', 'print-inspection', 'print-inspection-ex
   margin-bottom: 2px; 
   font-size: 15px;
 }
+.gender-row { display: flex; align-items: center; gap: 8px; }
 .gender { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+.type-badge { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
+.type-badge.escolar { background: #fef3c7; color: #92400e; }
+.type-badge.remis { background: #dcfce7; color: #166534; }
 .id-number { 
   font-weight: 700; 
   color: var(--text-main); 

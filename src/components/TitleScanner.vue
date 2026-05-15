@@ -3,8 +3,9 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { FileUp, Loader2, AlertCircle, FileText, CheckCircle } from 'lucide-vue-next';
 import { extractTitleData } from '../services/titleService';
 import * as pdfjsLib from 'pdfjs-dist';
+import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 const emit = defineEmits(['title-extracted']);
 

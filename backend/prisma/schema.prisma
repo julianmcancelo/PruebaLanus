@@ -61,6 +61,7 @@ model Habilitaciones {
   nroLicencia    String?
   email          String?
   phone          String?
+  tipoTramite    String?
   // Possible extras
   tipoHabilitacion String?
   timestamp      BigInt
@@ -69,6 +70,7 @@ model Habilitaciones {
 model Colegios {
   id              Int      @id @default(autoincrement())
   nombre          String   @unique
+  tipo            String?  // "Colegio" or "Remiseria"
   idNumberTitular String?
   dominio         String?
   domicilio       String?
@@ -80,6 +82,10 @@ model Colegios {
 model Inspecciones {
   id            Int      @id @default(autoincrement())
   dominio       String?
+  titularName   String?
+  idNumber      String?
+  nroExpediente String?
+  nroLicencia   String?
   fecha         String?
   resultado     String?
   observaciones String?

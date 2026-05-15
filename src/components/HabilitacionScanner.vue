@@ -3,8 +3,9 @@ import { ref, onMounted, onUnmounted } from 'vue';
 import { FileUp, Loader2, AlertCircle, FileText, CheckCircle } from 'lucide-vue-next';
 import { extractHabilitacionData } from '../services/habilitacionService';
 import * as pdfjsLib from 'pdfjs-dist';
+import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 const emit = defineEmits(['habilitacion-extracted']);
 
@@ -71,18 +72,31 @@ const processFiles = async (files: File[]) => {
   }
 };
 
+const extractedResult = ref<any>(null);
+
 const runExtraction = async () => {
   if (images.value.length === 0) return;
   isProcessing.value = true;
   try {
     const data = await extractHabilitacionData(images.value);
-    emit('habilitacion-extracted', data);
+    extractedResult.value = data;
     images.value = [];
   } catch (err) {
     error.value = 'Error en la extracción por IA.';
   } finally {
     isProcessing.value = false;
   }
+};
+
+const confirmSave = () => {
+  if (extractedResult.value) {
+    emit('habilitacion-extracted', extractedResult.value);
+    extractedResult.value = null;
+  }
+};
+
+const cancelResult = () => {
+  extractedResult.value = null;
 };
 
 const removeImage = (index: number) => images.value.splice(index, 1);
@@ -110,14 +124,49 @@ const removeImage = (index: number) => images.value.splice(index, 1);
       <p>Soporta PDFs y fotos. También puedes pegar con <b>Ctrl + V</b></p>
     </div>
 
-    <div v-if="images.length > 0" class="image-preview-grid">
+    <div v-if="images.length > 0 && !extractedResult" class="image-preview-grid">
       <div v-for="(img, idx) in images" :key="idx" class="preview-card">
         <img :src="`data:image/jpeg;base64,${img}`" />
         <button class="remove-btn" @click.stop="removeImage(idx)">×</button>
       </div>
     </div>
 
-    <div class="actions" v-if="images.length > 0">
+    <div v-if="extractedResult" class="extracted-preview animate-fade">
+      <h3>Verificar Datos Extraídos</h3>
+      <div class="preview-grid">
+        <div class="field">
+          <label>N° Expediente</label>
+          <input v-model="extractedResult.nroExpediente" class="preview-input" />
+        </div>
+        <div class="field">
+          <label>Titular</label>
+          <input v-model="extractedResult.titular" class="preview-input" />
+        </div>
+        <div class="field">
+          <label>Dominio</label>
+          <input v-model="extractedResult.dominio" class="preview-input" />
+        </div>
+        <div class="field">
+          <label>Tipo de Habilitación</label>
+          <div class="type-selector">
+            <button 
+              :class="{ active: extractedResult.tipoHabilitacion === 'Escolar' }"
+              @click="extractedResult.tipoHabilitacion = 'Escolar'"
+            >Transporte Escolar</button>
+            <button 
+              :class="{ active: extractedResult.tipoHabilitacion === 'Remis' }"
+              @click="extractedResult.tipoHabilitacion = 'Remis'"
+            >Remis</button>
+          </div>
+        </div>
+      </div>
+      <div class="preview-actions">
+        <button class="btn btn-secondary" @click="cancelResult">Descartar</button>
+        <button class="btn btn-primary" @click="confirmSave">Confirmar y Guardar</button>
+      </div>
+    </div>
+
+    <div class="actions" v-if="images.length > 0 && !extractedResult">
       <div v-if="error" class="error-msg"><AlertCircle :size="18" /> {{ error }}</div>
       <button class="btn btn-primary btn-large" :disabled="isProcessing" @click="runExtraction">
         <Loader2 v-if="isProcessing" class="spin" :size="20" />
@@ -240,6 +289,19 @@ const removeImage = (index: number) => images.value.splice(index, 1);
 .loading-content { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 20px; }
 .loading-content h2 { color: var(--text-main); font-weight: 800; }
 .loading-content p { color: var(--text-muted); font-weight: 600; }
+
+.extracted-preview { background: #f8fafc; border-radius: 16px; padding: 24px; border: 1px solid var(--border-light); }
+.extracted-preview h3 { font-size: 18px; font-weight: 700; color: var(--text-main); margin-bottom: 20px; }
+.preview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
+.preview-input { background: white; border: 1px solid var(--border-light); padding: 10px 14px; border-radius: 8px; font-size: 14px; font-weight: 600; color: var(--text-main); }
+
+.type-selector { display: flex; gap: 8px; }
+.type-selector button { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid var(--border-light); background: white; font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: all 0.2s; }
+.type-selector button.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+.preview-actions { display: flex; justify-content: flex-end; gap: 12px; }
 
 .spin { animation: rotate 1s linear infinite; color: var(--primary); }
 @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }

@@ -3,9 +3,10 @@ import { ref } from 'vue';
 import { Upload, FileText, Loader2, CheckCircle, AlertCircle, Scissors } from 'lucide-vue-next';
 import { extractInspectionData } from '../services/inspectionService';
 import * as pdfjs from 'pdfjs-dist';
+import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
 // PDF Worker setup
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 const emit = defineEmits(['inspection-extracted']);
 

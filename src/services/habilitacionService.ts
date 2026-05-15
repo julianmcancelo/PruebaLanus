@@ -7,6 +7,7 @@ export interface HabilitacionExtractedData {
   dominio: string;
   nroLicencia: string;
   tipoTramite: string;
+  tipoHabilitacion: 'Escolar' | 'Remis';
 }
 
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
@@ -57,6 +58,7 @@ export async function extractHabilitacionData(imageBases64: string[]): Promise<H
             - dominio (Vehicle plate or "Patente")
             - nroLicencia (License number, it usually starts with "068-" followed by 4 or 5 digits, e.g., "068-0056")
             - tipoTramite (e.g. "HABILITACION", "RENOVACION")
+            - tipoHabilitacion (Determine if it is "Escolar" or "Remis" based on the content of the document)
             - email (Owner's email if present)
             - phone (Owner's phone number if present)
             

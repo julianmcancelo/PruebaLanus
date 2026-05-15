@@ -737,8 +737,8 @@ const linkSchoolToHab = async (schoolId: any, habId: any) => {
         <button class="nav-item" :class="{ active: activeTab === 'hab_list' }" @click="activeTab = 'hab_list'">
           <FileText :size="18" /> <span>Habilitaciones</span>
         </button>
-        <button class="nav-item" :class="{ active: activeTab === 'school_list' }" @click="activeTab = 'school_list'">
-          <School :size="18" /> <span>Colegios</span>
+        <button class="nav-item" :class="{ active: activeTab === 'school_list' || activeTab === 'school_scan' }" @click="activeTab = 'school_list'">
+          <School :size="18" /> <span>Entidades</span>
         </button>
         <button class="nav-item" :class="{ active: activeTab === 'insp_list' }" @click="activeTab = 'insp_list'">
           <ClipboardList :size="18" /> <span>Inspecciones</span>
@@ -842,6 +842,7 @@ const linkSchoolToHab = async (schoolId: any, habId: any) => {
             </div>
           </div>
 
+<<<<<<< HEAD
           <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 24px;">
             <TitleScanner @title-extracted="handleTitleAdded" />
             <div class="glass-card" style="padding: 24px;">
@@ -873,6 +874,21 @@ const linkSchoolToHab = async (schoolId: any, habId: any) => {
                 <button class="btn btn-primary" @click="selectedTitle = {}">
                   <Plus :size="16" /> Nuevo Título
                 </button>
+=======
+          <div class="glass-card p-32">
+            <div class="db-status">
+              <div class="db-icon"><Database :size="48" /></div>
+              <div class="db-info">
+                <h3>Estado del Sistema</h3>
+                <p>Tu base de datos contiene:</p>
+                <div class="db-stats">
+                  <div class="db-stat"><strong>{{ people.length }}</strong> Personas</div>
+                  <div class="db-stat"><strong>{{ titles.length }}</strong> Títulos</div>
+                  <div class="db-stat"><strong>{{ habilitaciones.length }}</strong> Habilitaciones</div>
+                  <div class="db-stat"><strong>{{ schools.length }}</strong> Entidades</div>
+                  <div class="db-stat"><strong>{{ inspections.length }}</strong> Inspecciones</div>
+                </div>
+>>>>>>> de0fe78 (Fix PDF worker, update Prisma schema for habilitaciones and entities, and improve AI extraction for Remis/Escolar types)
               </div>
             </div>
             <TitlesTable :titles="filteredTitles" @delete="deleteTitle" @view="selectedTitle = $event" />
@@ -924,9 +940,15 @@ const linkSchoolToHab = async (schoolId: any, habId: any) => {
         <!-- Colegios -->
         <section v-if="activeTab === 'school_list'">
           <div class="section-header">
+<<<<<<< HEAD
             <div class="title-group">
               <h2>Colegios</h2>
               <p>Gestión de establecimientos.</p>
+=======
+            <div>
+              <h1>Entidades Vinculadas</h1>
+              <p>Gestiona los certificados de colegios o remiserías y su vinculación con transportistas.</p>
+>>>>>>> de0fe78 (Fix PDF worker, update Prisma schema for habilitaciones and entities, and improve AI extraction for Remis/Escolar types)
             </div>
             <button class="btn btn-primary" @click="activeTab = 'school_scan'"><Plus :size="16" /> Escanear</button>
           </div>
