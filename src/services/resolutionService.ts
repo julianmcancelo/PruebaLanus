@@ -64,7 +64,28 @@ export async function generateResolutionDOCX(type: 'escolar' | 'remis', data: an
       mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     });
 
-    saveAs(out, `Resolucion_${type.toUpperCase()}_${data.hab?.dominio || 'S-D'}.docx`);
+    const clean = (str: string) => (str || '').replace(/[^a-zA-Z0-9-]/g, '_').trim();
+    let name = '';
+    let surname = '';
+    if (data.person) {
+      name = clean(data.person.names);
+      surname = clean(data.person.surname);
+    } else if (data.hab?.titular) {
+      if (data.hab.titular.includes(',')) {
+        const parts = data.hab.titular.split(',');
+        surname = clean(parts[0]);
+        name = clean(parts[1]);
+      } else {
+        name = clean(data.hab.titular);
+      }
+    }
+    const cleanDominio = clean(data.hab?.dominio || 'S-D');
+    const cleanExp = clean(data.hab?.nroExpediente || 'S-E');
+    
+    const fullNamePart = [name, surname].filter(Boolean).join('_');
+    const filename = `Resolucion_${fullNamePart}_${cleanDominio}_${cleanExp}.docx`.replace(/__+/g, '_');
+
+    saveAs(out, filename);
   } catch (error) {
     console.error('Error generating DOCX:', error);
     throw error;
@@ -111,7 +132,28 @@ export async function generateElevacionTribunalDOCX(data: any) {
       mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     });
 
-    saveAs(out, `Elevacion_Tribunal_${data.hab?.dominio || 'S-D'}.docx`);
+    const clean = (str: string) => (str || '').replace(/[^a-zA-Z0-9-]/g, '_').trim();
+    let name = '';
+    let surname = '';
+    if (data.person) {
+      name = clean(data.person.names);
+      surname = clean(data.person.surname);
+    } else if (data.hab?.titular) {
+      if (data.hab.titular.includes(',')) {
+        const parts = data.hab.titular.split(',');
+        surname = clean(parts[0]);
+        name = clean(parts[1]);
+      } else {
+        name = clean(data.hab.titular);
+      }
+    }
+    const cleanDominio = clean(data.hab?.dominio || 'S-D');
+    const cleanExp = clean(data.hab?.nroExpediente || 'S-E');
+    
+    const fullNamePart = [name, surname].filter(Boolean).join('_');
+    const filename = `Elevacion_Tribunal_${fullNamePart}_${cleanDominio}_${cleanExp}.docx`.replace(/__+/g, '_');
+
+    saveAs(out, filename);
   } catch (error) {
     console.error('Error generating Elevacion DOCX:', error);
     throw error;

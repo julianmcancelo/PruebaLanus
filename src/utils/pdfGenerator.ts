@@ -129,6 +129,16 @@ export function generateInspectionPDF(inspection: any, title: any, hab: any) {
   doc.setFont('helvetica', 'normal');
   doc.text('Firma del interesado', 35, finalY + 30);
   
+  // Agent Signature
+  const storedFirma = localStorage.getItem('agente_firma_digital');
+  if (storedFirma) {
+    try {
+      doc.addImage(storedFirma, 'PNG', pageWidth - 80, finalY + 3, 50, 20);
+    } catch (e) {
+      console.error('Error drawing agent signature in Inspection PDF:', e);
+    }
+  }
+
   doc.line(pageWidth - 90, finalY + 25, pageWidth - 20, finalY + 25);
   doc.text('Firma del agente', pageWidth - 70, finalY + 30);
 
@@ -210,6 +220,18 @@ export function generateHabilitacionPDF(hab: any, person: any, title: any, drive
   doc.setFontSize(8);
   doc.text('Este certificado debe exhibirse en un lugar visible de la unidad.', pageWidth / 2, finalY - 10, { align: 'center' });
   
+  // Agent Signature on the left
+  const storedFirma = localStorage.getItem('agente_firma_digital');
+  if (storedFirma) {
+    try {
+      doc.addImage(storedFirma, 'PNG', 20, finalY - 5, 45, 20);
+    } catch (e) {
+      console.error('Error drawing agent signature in Habilitacion PDF:', e);
+    }
+  }
+  doc.line(20, finalY + 15, 75, finalY + 15);
+  doc.text('FIRMA AUTORIZADA', 47, finalY + 20, { align: 'center' });
+
   doc.rect(pageWidth - 70, finalY, 50, 20); // Placeholder for QR or Seal
   doc.text('SELLO MUNICIPAL', pageWidth - 45, finalY + 12, { align: 'center' });
 

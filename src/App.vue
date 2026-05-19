@@ -2,7 +2,7 @@
 import { ref, onMounted, computed, watch } from 'vue';
 import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
-import { Users, Database, Settings, LogOut, Search, Plus, FilePlus, Scissors, Eye, Car, School, ClipboardCheck, FileText, Download, AlertTriangle, Building2, ClipboardList, Info, Trash2, Zap, Loader2, Upload } from 'lucide-vue-next';
+import { Users, Database, Settings, LogOut, Search, Plus, FilePlus, Scissors, Eye, Car, School, ClipboardCheck, FileText, Download, AlertTriangle, Building2, ClipboardList, Info, Trash2, Zap, Loader2, Upload, FileSignature } from 'lucide-vue-next';
 import DniScanner from './components/DniScanner.vue';
 import PeopleTable from './components/PeopleTable.vue';
 import TitleScanner from './components/TitleScanner.vue';
@@ -24,6 +24,7 @@ import NewInspection from './components/NewInspection.vue';
 import InspectionsTable from './components/InspectionsTable.vue';
 import InspectionScanner from './components/InspectionScanner.vue';
 import BulkScanner from './components/BulkScanner.vue';
+import SignaturePad from './components/SignaturePad.vue';
 import { generateInspectionPDF, generateHabilitacionPDF } from './utils/pdfGenerator';
 import { generateResolutionDOCX, generateElevacionTribunalDOCX } from './services/resolutionService';
 import { 
@@ -72,6 +73,7 @@ const currentSectionLabel = computed(() => {
     case 'school_list': case 'school_scan': return 'Colegios';
     case 'insp_list': case 'insp_scan': case 'insp_new': return 'Inspecciones';
     case 'bulk': return 'Carga Masiva';
+    case 'signature': return 'Firma Digital';
     case 'database': return 'Base de Datos';
     case 'merge': case 'split': case 'viewer': case 'renamer': return 'Herramientas PDF';
     default: return 'Panel de Control';
@@ -817,6 +819,9 @@ const linkSchoolToHab = async (schoolId: any, habId: any) => {
           <Zap :size="18" /> <span>Carga Masiva</span>
         </button>
         <div style="flex: 1;"></div>
+        <button class="nav-item" :class="{ active: activeTab === 'signature' }" @click="activeTab = 'signature'">
+          <FileSignature :size="18" /> <span>Firma Digital</span>
+        </button>
         <button class="nav-item" :class="{ active: activeTab === 'database' }" @click="activeTab = 'database'">
           <Database :size="18" /> <span>Base de Datos</span>
         </button>
@@ -1073,6 +1078,10 @@ const linkSchoolToHab = async (schoolId: any, habId: any) => {
 
           <div v-if="activeTab === 'bulk'">
             <BulkScanner @saved="loadData" />
+          </div>
+
+          <div v-if="activeTab === 'signature'">
+            <SignaturePad @saved="showToast('Firma digital actualizada', 'success')" />
           </div>
         </div> <!-- Fin animate-fade -->
       </div> <!-- Fin content-scroll-area -->

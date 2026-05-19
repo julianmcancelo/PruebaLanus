@@ -139,14 +139,26 @@ const removeImage = (index: number) => images.value.splice(index, 1);
           <input v-model="extractedResult.nroExpediente" class="preview-input" />
         </div>
         <div class="field">
-          <label>Titular</label>
+          <label>N° Licencia / Habilitación</label>
+          <input v-model="extractedResult.nroLicencia" class="preview-input" placeholder="ej. 068-0056 o similar" />
+        </div>
+        <div class="field">
+          <label>Titular (Nombre y Apellido)</label>
           <input v-model="extractedResult.titular" class="preview-input" />
         </div>
         <div class="field">
-          <label>Dominio</label>
+          <label>DNI / CUIT del Titular</label>
+          <input v-model="extractedResult.idNumber" class="preview-input" placeholder="ej. 20-12345678-9" />
+        </div>
+        <div class="field">
+          <label>Dominio (Patente)</label>
           <input v-model="extractedResult.dominio" class="preview-input" />
         </div>
         <div class="field">
+          <label>Tipo de Trámite</label>
+          <input v-model="extractedResult.tipoTramite" class="preview-input" placeholder="ej. HABILITACION, RENOVACION" />
+        </div>
+        <div class="field full-width">
           <label>Tipo de Habilitación</label>
           <div class="type-selector">
             <button 
@@ -294,6 +306,7 @@ const removeImage = (index: number) => images.value.splice(index, 1);
 .extracted-preview h3 { font-size: 18px; font-weight: 700; color: var(--text-main); margin-bottom: 20px; }
 .preview-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
 .field { display: flex; flex-direction: column; gap: 6px; }
+.field.full-width { grid-column: span 2; }
 .field label { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; }
 .preview-input { background: white; border: 1px solid var(--border-light); padding: 10px 14px; border-radius: 8px; font-size: 14px; font-weight: 600; color: var(--text-main); }
 

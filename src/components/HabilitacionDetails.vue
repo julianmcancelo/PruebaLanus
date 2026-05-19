@@ -129,7 +129,10 @@ const linkedSchools = computed(() => {
         <div class="quick-info">
           <div class="info-chip">
             <Calendar :size="14" />
-            <span>Licencia: <strong>{{ hab.nroLicencia || '---' }}</strong></span>
+            <span v-if="!isEditing">Licencia: <strong>{{ hab.nroLicencia || '---' }}</strong></span>
+            <span v-else style="display: flex; align-items: center; gap: 4px;">
+              Licencia: <input v-model="editedHab.nroLicencia" style="font-size: 13px; font-weight: 700; width: 110px; padding: 2px 6px; border-radius: 6px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; outline: none;" placeholder="N° Licencia" />
+            </span>
           </div>
           <div v-if="hab.dominio" class="info-chip dominio">
             <Car :size="14" />
