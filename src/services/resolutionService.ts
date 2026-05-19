@@ -25,8 +25,9 @@ function sanitizeTemplateXML(zip: PizZip) {
     if (fileName.endsWith('.xml')) {
       let fileContent = zip.files[fileName].asText();
       
-      // Remove $ preceding template tags (handles split XML tags between $ and {)
-      fileContent = fileContent.replace(/\$(<[^>]+>)*\{/g, '$1{');
+      // Safe lookahead: Match $ only if followed by optional XML tags and an opening brace {
+      // This deletes the $ character itself without touching, deleting or corrupting any XML tags!
+      fileContent = fileContent.replace(/\$(?=(?:<[^>]*>)*\{)/g, '');
       
       // Also remove any literal $ followed by dashes (like $---)
       fileContent = fileContent.replace(/\$--+/g, '---');
