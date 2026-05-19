@@ -23,7 +23,12 @@ const emit = defineEmits([
   'update-school'
 ]);
 
+const editableNombre = ref(props.school.nombre || '');
 const editableAddress = ref(props.school.domicilio || '');
+const editableTelefono = ref(props.school.telefono || '');
+const editableTipo = ref(props.school.tipo || 'Colegio');
+const editableExpediente = ref(props.school.expediente || '');
+const editableCuenta = ref(props.school.cuenta || '');
 const isSavingAddress = ref(false);
 const isEnriching = ref(false);
 
@@ -40,9 +45,17 @@ const simpleMapUrl = computed(() => {
   return `https://maps.google.com/maps?q=${query}&t=&z=15&ie=UTF8&iwloc=&output=embed`;
 });
 
-const saveAddress = async () => {
+const saveSchoolFields = async () => {
   isSavingAddress.value = true;
-  await emit('update-school', { ...props.school, domicilio: editableAddress.value });
+  await emit('update-school', { 
+    ...props.school, 
+    nombre: editableNombre.value,
+    domicilio: editableAddress.value,
+    telefono: editableTelefono.value,
+    tipo: editableTipo.value,
+    expediente: editableExpediente.value,
+    cuenta: editableCuenta.value
+  });
   isSavingAddress.value = false;
 };
 
@@ -80,11 +93,27 @@ const getTitleForHab = (hab: any) => {
   <div class="modal-overlay" @click.self="$emit('close')">
     <div class="modal-content glass-card animate-slide-up">
       <div class="modal-header">
-        <div class="school-title">
+        <div class="school-title" style="width: 100%;">
           <div class="school-icon"><School :size="24" /></div>
-          <div>
-            <div class="title-with-action">
-              <h2>Legajo de Colegio: {{ school.nombre }}</h2>
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 12px;">
+            <div class="title-with-action" style="display: flex; align-items: center; gap: 16px; width: 100%; flex-wrap: wrap;">
+              <input 
+                v-model="editableNombre" 
+                type="text" 
+                style="font-size: 1.6rem; font-weight: 800; color: #0f172a; border: none; background: none; border-bottom: 2px dashed #cbd5e1; outline: none; flex: 1; min-width: 300px; padding: 4px 0;" 
+                placeholder="Nombre del Colegio o Remisería..."
+                @blur="saveSchoolFields"
+              />
+              
+              <select 
+                v-model="editableTipo" 
+                style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 12px; padding: 8px 16px; font-size: 13px; font-weight: 700; color: #475569; outline: none; cursor: pointer; transition: all 0.2s;"
+                @change="saveSchoolFields"
+              >
+                <option value="Colegio">Colegio</option>
+                <option value="Remiseria">Remisería / Agencia</option>
+              </select>
+
               <button 
                 class="enrich-btn" 
                 @click="handleEnrich" 
@@ -97,22 +126,56 @@ const getTitleForHab = (hab: any) => {
               </button>
             </div>
             
-            <div class="address-edit-group">
-              <MapPin :size="14" class="pin-icon" />
-              <input 
-                v-model="editableAddress" 
-                type="text" 
-                class="address-input" 
-                placeholder="Ingresar domicilio..."
-                @blur="saveAddress"
-              />
-              <button v-if="editableAddress !== school.domicilio" @click="saveAddress" class="save-mini-btn">
-                <Save :size="14" />
-              </button>
+            <div style="display: flex; gap: 16px; align-items: center; flex-wrap: wrap; width: 100%;">
+              <div class="address-edit-group" style="display: flex; align-items: center; gap: 10px; background: #f1f5f9; padding: 10px 18px; border-radius: 14px; flex: 1.5; min-width: 250px; border: 1px solid #cbd5e1;">
+                <MapPin :size="14" class="pin-icon" />
+                <input 
+                  v-model="editableAddress" 
+                  type="text" 
+                  class="address-input" 
+                  placeholder="Ingresar domicilio..."
+                  @blur="saveSchoolFields"
+                  style="background: none; border: none; font-size: 0.95rem; font-weight: 600; color: #334155; width: 100%; outline: none;"
+                />
+              </div>
+
+              <div class="phone-edit-group" style="display: flex; align-items: center; gap: 10px; background: #f1f5f9; padding: 10px 18px; border-radius: 14px; flex: 1; min-width: 180px; border: 1px solid #cbd5e1;">
+                <span style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase;">Teléfono:</span>
+                <input 
+                  v-model="editableTelefono" 
+                  type="text" 
+                  placeholder="Ingresar teléfono..."
+                  @blur="saveSchoolFields"
+                  style="background: none; border: none; font-size: 0.95rem; font-weight: 600; color: #334155; width: 100%; outline: none;"
+                />
+              </div>
+            </div>
+
+            <div v-if="editableTipo === 'Remiseria'" class="remis-fields-group" style="display: flex; gap: 16px; flex-wrap: wrap;">
+              <div class="input-mini-group" style="display: flex; align-items: center; gap: 8px; background: #f1f5f9; padding: 8px 14px; border-radius: 12px; border: 1px solid #cbd5e1;">
+                <span style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase;">Expediente:</span>
+                <input 
+                  v-model="editableExpediente" 
+                  type="text" 
+                  style="background: none; border: none; font-size: 13px; font-weight: 700; color: #1e293b; outline: none; width: 140px;" 
+                  placeholder="Ej: 4063-1234/2026"
+                  @blur="saveSchoolFields"
+                />
+              </div>
+              <div class="input-mini-group" style="display: flex; align-items: center; gap: 8px; background: #f1f5f9; padding: 8px 14px; border-radius: 12px; border: 1px solid #cbd5e1;">
+                <span style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase;">Cuenta/Habilitación:</span>
+                <input 
+                  v-model="editableCuenta" 
+                  type="text" 
+                  style="background: none; border: none; font-size: 13px; font-weight: 700; color: #1e293b; outline: none; width: 80px;" 
+                  placeholder="Ej: 1234"
+                  @blur="saveSchoolFields"
+                />
+              </div>
             </div>
           </div>
         </div>
-        <button class="close-btn" @click="$emit('close')"><X :size="24" /></button>
+        <button class="close-btn" @click="$emit('close')" style="margin-left: 20px;"><X :size="24" /></button>
       </div>
 
       <div class="modal-body">

@@ -160,6 +160,14 @@ const removeImage = (index: number) => images.value.splice(index, 1);
             >Remisería / Agencia</button>
           </div>
         </div>
+        <div v-if="extractedResult.tipo === 'Remiseria'" class="field">
+          <label>N° Expediente Remisería</label>
+          <input v-model="extractedResult.expediente" placeholder="Ej: 4063-1234/2026" class="preview-input" />
+        </div>
+        <div v-if="extractedResult.tipo === 'Remiseria'" class="field">
+          <label>N° Cuenta / Habilitación</label>
+          <input v-model="extractedResult.cuenta" placeholder="Ej: 1234" class="preview-input" />
+        </div>
       </div>
       <div class="preview-actions">
         <button class="btn btn-secondary" @click="cancelResult">Descartar</button>
