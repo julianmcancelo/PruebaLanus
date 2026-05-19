@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { X, User, CreditCard, Calendar, MapPin, Hash, Globe, Map, Edit2, Save, Car, CheckCircle2 } from 'lucide-vue-next';
+import { X, User, CreditCard, Calendar, MapPin, Hash, Globe, Map, Edit2, Save, Car, CheckCircle2, Building2, Users } from 'lucide-vue-next';
 
 const props = defineProps<{
   person: any | null,
@@ -35,12 +35,65 @@ const handleSave = () => {
             </div>
             <img v-else :src="`data:image/jpeg;base64,${person.photo}`" class="person-photo" alt="Foto" />
             <div class="person-info">
-              <h2 v-if="!isEditing">{{ person.surname }}, {{ person.names }}</h2>
-              <div v-else class="edit-name-group">
-                <input v-model="editedPerson.surname" class="input-field" placeholder="Apellido" />
-                <input v-model="editedPerson.names" class="input-field" placeholder="Nombres" />
+              <h2 v-if="!isEditing">
+                <span v-if="person.tipoPersona === 'juridica'">[{{ person.tipoSocietario || 'S.A./S.R.L.' }}] {{ person.surname }}</span>
+                <span v-else>{{ person.surname }}, {{ person.names }}</span>
+              </h2>
+              <div v-else class="edit-name-group" style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+                <div style="display: flex; gap: 8px; margin-bottom: 4px;">
+                  <button 
+                    type="button"
+                    :style="{ 
+                      flex: '1', 
+                      padding: '8px', 
+                      borderRadius: '10px', 
+                      border: '1px solid',
+                      borderColor: editedPerson.tipoPersona !== 'juridica' ? '#7c3aed' : '#cbd5e1',
+                      background: editedPerson.tipoPersona !== 'juridica' ? '#f5f3ff' : 'white',
+                      color: editedPerson.tipoPersona !== 'juridica' ? '#7c3aed' : '#64748b',
+                      fontSize: '11px', 
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }"
+                    @click="editedPerson.tipoPersona = 'fisica'"
+                  >Persona Humana</button>
+                  <button 
+                    type="button"
+                    :style="{ 
+                      flex: '1', 
+                      padding: '8px', 
+                      borderRadius: '10px', 
+                      border: '1px solid',
+                      borderColor: editedPerson.tipoPersona === 'juridica' ? '#7c3aed' : '#cbd5e1',
+                      background: editedPerson.tipoPersona === 'juridica' ? '#f5f3ff' : 'white',
+                      color: editedPerson.tipoPersona === 'juridica' ? '#7c3aed' : '#64748b',
+                      fontSize: '11px', 
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }"
+                    @click="editedPerson.tipoPersona = 'juridica'"
+                  >Jurídica (S.A. / S.R.L.)</button>
+                </div>
+                
+                <div v-if="editedPerson.tipoPersona === 'juridica'" style="display: flex; gap: 8px; width: 100%;">
+                  <select v-model="editedPerson.tipoSocietario" class="input-field" style="width: 130px; font-weight: 700;">
+                    <option value="S.A.">S.A.</option>
+                    <option value="S.R.L.">S.R.L.</option>
+                    <option value="S.H.">Soc. de Hecho</option>
+                    <option value="Cooperativa">Cooperativa</option>
+                    <option value="Otro">Otro</option>
+                  </select>
+                  <input v-model="editedPerson.surname" class="input-field" style="flex: 1;" placeholder="Razón Social..." />
+                </div>
+                
+                <div v-else style="display: flex; gap: 8px; width: 100%;">
+                  <input v-model="editedPerson.surname" class="input-field" placeholder="Apellido" />
+                  <input v-model="editedPerson.names" class="input-field" placeholder="Nombres" />
+                </div>
               </div>
-              <span class="person-type">Ficha de Persona</span>
+              <span class="person-type">Ficha de {{ person.tipoPersona === 'juridica' ? 'Persona Jurídica' : 'Persona Humana' }}</span>
             </div>
           </div>
           <div class="header-actions">
@@ -53,13 +106,16 @@ const handleSave = () => {
           </div>
         </div>
         
-        <!-- Quick Info -->
         <div class="quick-info">
           <div class="info-chip">
             <CreditCard :size="14" />
-            <span><strong>{{ person.idNumber }}</strong></span>
+            <span><strong>{{ person.tipoPersona === 'juridica' ? 'CUIT: ' : 'DNI: ' }}{{ person.idNumber }}</strong></span>
           </div>
-          <div v-if="person.processNumber" class="info-chip">
+          <div v-if="person.tipoPersona === 'juridica' && person.nroIgj" class="info-chip" style="background: rgba(124, 58, 237, 0.15); color: #7c3aed;">
+            <Building2 :size="14" />
+            <span>IGJ: <strong>{{ person.nroIgj }}</strong></span>
+          </div>
+          <div v-if="person.processNumber && person.tipoPersona !== 'juridica'" class="info-chip">
             <Hash :size="14" />
             <span>Trámite: <strong>{{ person.processNumber }}</strong></span>
           </div>
@@ -72,8 +128,8 @@ const handleSave = () => {
 
       <!-- Content -->
       <div class="modal-body">
-        <!-- Section: Datos Personales -->
-        <div class="data-section">
+        <!-- Section: Datos Personales (Física) -->
+        <div v-if="person.tipoPersona !== 'juridica'" class="data-section">
           <div class="section-header">
             <div class="section-icon purple">
               <User :size="18" />
@@ -98,6 +154,72 @@ const handleSave = () => {
               <label>Nacionalidad</label>
               <span v-if="!isEditing">{{ person.nationality || '---' }}</span>
               <input v-else v-model="editedPerson.nationality" class="input-field" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: Inscripción IGJ & Estatuto (Jurídica) -->
+        <div v-else class="data-section" style="border-left: 4px solid #7c3aed;">
+          <div class="section-header">
+            <div class="section-icon purple">
+              <Building2 :size="18" />
+            </div>
+            <h3>Inscripción IGJ & Estatuto</h3>
+          </div>
+          
+          <div class="detail-grid">
+            <div class="detail-item">
+              <label>N° Registro / Correlativo IGJ</label>
+              <span v-if="!isEditing">{{ person.nroIgj || '---' }}</span>
+              <input v-else v-model="editedPerson.nroIgj" class="input-field" placeholder="Ej: 1984224" />
+            </div>
+            
+            <div class="detail-item">
+              <label>Fecha de Inscripción IGJ</label>
+              <span v-if="!isEditing">{{ person.fechaInscripcionIgj || '---' }}</span>
+              <input v-else v-model="editedPerson.fechaInscripcionIgj" class="input-field" placeholder="DD/MM/YYYY" />
+            </div>
+            
+            <div class="detail-item full-width">
+              <label>Fecha de Estatuto / Contrato Social / Reformas</label>
+              <span v-if="!isEditing">{{ person.fechaEstatuto || '---' }}</span>
+              <input v-else v-model="editedPerson.fechaEstatuto" class="input-field" placeholder="Fecha del instrumento original..." />
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: Representación Legal / Autoridades (Jurídica) -->
+        <div v-if="person.tipoPersona === 'juridica'" class="data-section" style="border-left: 4px solid #16a34a;">
+          <div class="section-header">
+            <div class="section-icon green">
+              <Users :size="18" />
+            </div>
+            <h3>Representación Legal / Autoridades</h3>
+          </div>
+          
+          <div class="detail-grid">
+            <div class="detail-item">
+              <label>Representante Legal / Apoderado</label>
+              <span v-if="!isEditing">{{ person.repNombre || '---' }}</span>
+              <input v-else v-model="editedPerson.repNombre" class="input-field" placeholder="Nombre completo..." />
+            </div>
+            
+            <div class="detail-item">
+              <label>DNI del Representante</label>
+              <span v-if="!isEditing">{{ person.repDni || '---' }}</span>
+              <input v-else v-model="editedPerson.repDni" class="input-field" placeholder="Documento..." />
+            </div>
+            
+            <div class="detail-item full-width">
+              <label>Cargo / Rol</label>
+              <span v-if="!isEditing">{{ person.repCargo || '---' }}</span>
+              <select v-else v-model="editedPerson.repCargo" class="input-field">
+                <option value="Presidente">Presidente</option>
+                <option value="Socio Gerente">Socio Gerente</option>
+                <option value="Apoderado">Apoderado / Mandatario</option>
+                <option value="Director">Director</option>
+                <option value="Otro">Otro</option>
+              </select>
             </div>
           </div>
         </div>

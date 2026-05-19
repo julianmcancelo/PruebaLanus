@@ -67,7 +67,7 @@ const showToast = (message: string, type: Toast['type'] = 'info') => {
 const currentSectionLabel = computed(() => {
   switch (activeTab.value) {
     case 'dashboard': return 'Panel de Control';
-    case 'registry': return 'Personas';
+    case 'registry': case 'registry_create': return 'Personas';
     case 'titles_list': case 'titles_scan': return 'Títulos Automotor';
     case 'hab_list': case 'hab_scan': return 'Habilitaciones';
     case 'school_list': case 'school_scan': return 'Colegios';
@@ -151,12 +151,59 @@ watch(currentUser, (newUser) => {
 
 onMounted(loadData);
 
+const newManualPerson = ref({
+  tipoPersona: 'fisica',
+  surname: '',
+  names: '',
+  idNumber: '',
+  birthDate: '',
+  gender: 'M',
+  nationality: 'Argentina',
+  address: '',
+  city: 'Lanús',
+  province: 'Buenos Aires',
+  tipoSocietario: 'S.A.',
+  nroIgj: '',
+  fechaInscripcionIgj: '',
+  fechaEstatuto: '',
+  repNombre: '',
+  repDni: '',
+  repCargo: 'Presidente'
+});
+
+const openManualCreate = () => {
+  newManualPerson.value = {
+    tipoPersona: 'fisica',
+    surname: '',
+    names: '',
+    idNumber: '',
+    birthDate: '',
+    gender: 'M',
+    nationality: 'Argentina',
+    address: '',
+    city: 'Lanús',
+    province: 'Buenos Aires',
+    tipoSocietario: 'S.A.',
+    nroIgj: '',
+    fechaInscripcionIgj: '',
+    fechaEstatuto: '',
+    repNombre: '',
+    repDni: '',
+    repCargo: 'Presidente'
+  };
+  activeTab.value = 'registry_create';
+};
+
 const handlePersonAdded = async (newPerson: any) => {
   const result = await savePerson(newPerson);
+  const displayName = newPerson.tipoPersona === 'juridica' 
+    ? `[${newPerson.tipoSocietario}] ${newPerson.surname}` 
+    : `${newPerson.surname}, ${newPerson.names}`;
+    
   if (result.isDuplicate) {
-    showToast(`Persona duplicada: DNI ${newPerson.idNumber} ya existía. Datos actualizados.`, 'warning');
+    showToast(`Registro duplicado: ${newPerson.idNumber} ya existía. Datos actualizados.`, 'warning');
   } else {
-    showToast(`Persona registrada: ${newPerson.surname}, ${newPerson.names}`, 'success');
+    showToast(`Registrado con éxito: ${displayName}`, 'success');
   }
   await loadData();
   activeTab.value = 'registry';
@@ -884,12 +931,17 @@ const linkSchoolToHab = async (schoolId: any, habId: any) => {
         <section v-if="activeTab === 'registry'">
           <div class="section-header">
             <div class="title-group">
-              <h2>Personas</h2>
-              <p>Registro de titulares y personal.</p>
+              <h2>Personas / Sociedades</h2>
+              <p>Registro de titulares, directores y personal legal de transporte.</p>
             </div>
-            <button class="btn btn-primary" @click="activeTab = 'scan'">
-              <Plus :size="16" /> Registrar Persona
-            </button>
+            <div style="display: flex; gap: 10px;">
+              <button class="btn btn-secondary" @click="openManualCreate">
+                <Plus :size="16" /> Alta Manual
+              </button>
+              <button class="btn btn-primary" @click="activeTab = 'scan'">
+                <Zap :size="16" /> Escanear DNI
+              </button>
+            </div>
           </div>
           <PeopleTable :people="filteredPeople" @delete="deletePerson" @view="viewDetails" />
         </section>
@@ -901,6 +953,203 @@ const linkSchoolToHab = async (schoolId: any, habId: any) => {
           </div>
           <DniScanner @person-extracted="handlePersonAdded" />
         </div>
+
+        <!-- Carga Manual de Persona / Sociedad -->
+        <div v-if="activeTab === 'registry_create'">
+          <div class="section-header">
+            <div class="title-group">
+              <h2>Alta de Persona / Sociedad</h2>
+              <p>Completá los datos para registrar un titular o apoderado.</p>
+            </div>
+            <button class="btn btn-secondary" @click="activeTab = 'registry'">Cancelar</button>
+          </div>
+          
+          <div class="glass-card animate-fade" style="padding: 32px; max-width: 800px; margin: 0 auto; border-radius: 20px;">
+            <!-- Type Selector Toggle -->
+            <div style="display: flex; gap: 12px; margin-bottom: 24px;">
+              <button 
+                type="button"
+                :style="{ 
+                  flex: '1', 
+                  padding: '12px', 
+                  borderRadius: '12px', 
+                  border: '2px solid',
+                  borderColor: newManualPerson.tipoPersona !== 'juridica' ? '#7c3aed' : '#cbd5e1',
+                  background: newManualPerson.tipoPersona !== 'juridica' ? '#f5f3ff' : 'white',
+                  color: newManualPerson.tipoPersona !== 'juridica' ? '#7c3aed' : '#64748b',
+                  fontSize: '14px', 
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  boxShadow: newManualPerson.tipoPersona !== 'juridica' ? '0 4px 12px rgba(124, 58, 237, 0.15)' : 'none'
+                }"
+                @click="newManualPerson.tipoPersona = 'fisica'"
+              >
+                👤 Persona Humana / Física
+              </button>
+              <button 
+                type="button"
+                :style="{ 
+                  flex: '1', 
+                  padding: '12px', 
+                  borderRadius: '12px', 
+                  border: '2px solid',
+                  borderColor: newManualPerson.tipoPersona === 'juridica' ? '#7c3aed' : '#cbd5e1',
+                  background: newManualPerson.tipoPersona === 'juridica' ? '#f5f3ff' : 'white',
+                  color: newManualPerson.tipoPersona === 'juridica' ? '#7c3aed' : '#64748b',
+                  fontSize: '14px', 
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  boxShadow: newManualPerson.tipoPersona === 'juridica' ? '0 4px 12px rgba(124, 58, 237, 0.15)' : 'none'
+                }"
+                @click="newManualPerson.tipoPersona = 'juridica'"
+              >
+                🏢 Persona Jurídica (S.A. / S.R.L.)
+              </button>
+            </div>
+
+            <!-- Form Body -->
+            <form @submit.prevent="handlePersonAdded(newManualPerson)">
+              <!-- Section: Datos Societarios (Jurídica) -->
+              <div v-if="newManualPerson.tipoPersona === 'juridica'" style="display: flex; flex-direction: column; gap: 16px;">
+                <div style="display: grid; grid-template-columns: 140px 1fr; gap: 16px;">
+                  <div>
+                    <label style="display: block; font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 6px;">Tipo Societario</label>
+                    <select v-model="newManualPerson.tipoSocietario" class="input-field" style="font-weight: 700; height: 42px;">
+                      <option value="S.A.">S.A.</option>
+                      <option value="S.R.L.">S.R.L.</option>
+                      <option value="S.H.">Soc. de Hecho</option>
+                      <option value="Cooperativa">Cooperativa</option>
+                      <option value="Otro">Otro</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style="display: block; font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 6px;">Razón Social</label>
+                    <input v-model="newManualPerson.surname" required class="input-field" placeholder="Ej: PATAGONIA TRANSFER S.A." style="height: 42px;" />
+                  </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                  <div>
+                    <label style="display: block; font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 6px;">CUIT</label>
+                    <input v-model="newManualPerson.idNumber" required class="input-field" placeholder="30-XXXXXXXX-X" style="height: 42px;" />
+                  </div>
+                  <div>
+                    <label style="display: block; font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 6px;">N° Correlativo / Registro IGJ</label>
+                    <input v-model="newManualPerson.nroIgj" class="input-field" placeholder="N° Correlativo..." style="height: 42px;" />
+                  </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                  <div>
+                    <label style="display: block; font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 6px;">Fecha de Inscripción IGJ</label>
+                    <input v-model="newManualPerson.fechaInscripcionIgj" class="input-field" placeholder="DD/MM/YYYY" style="height: 42px;" />
+                  </div>
+                  <div>
+                    <label style="display: block; font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 6px;">Fecha de Estatuto / Contrato</label>
+                    <input v-model="newManualPerson.fechaEstatuto" class="input-field" placeholder="DD/MM/YYYY o Año..." style="height: 42px;" />
+                  </div>
+                </div>
+
+                <!-- Representante Section -->
+                <div style="background: #f8fafc; border-radius: 12px; padding: 16px; border: 1px solid #e2e8f0; margin-top: 8px;">
+                  <h4 style="margin: 0 0 12px 0; color: #334155; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em;">Representación Legal</h4>
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 12px;">
+                    <div>
+                      <label style="display: block; font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 4px;">Nombre del Representante</label>
+                      <input v-model="newManualPerson.repNombre" class="input-field" placeholder="Nombre completo..." style="height: 40px;" />
+                    </div>
+                    <div>
+                      <label style="display: block; font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 4px;">DNI del Representante</label>
+                      <input v-model="newManualPerson.repDni" class="input-field" placeholder="DNI..." style="height: 40px;" />
+                    </div>
+                  </div>
+                  <div>
+                    <label style="display: block; font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 4px;">Cargo / Rol</label>
+                    <select v-model="newManualPerson.repCargo" class="input-field" style="height: 40px;">
+                      <option value="Presidente">Presidente</option>
+                      <option value="Socio Gerente">Socio Gerente</option>
+                      <option value="Apoderado">Apoderado</option>
+                      <option value="Director">Director</option>
+                      <option value="Otro">Otro</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Section: Datos Personales (Humana) -->
+              <div v-else style="display: flex; flex-direction: column; gap: 16px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                  <div>
+                    <label style="display: block; font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 6px;">Apellido</label>
+                    <input v-model="newManualPerson.surname" required class="input-field" placeholder="Ej: Perez" style="height: 42px;" />
+                  </div>
+                  <div>
+                    <label style="display: block; font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 6px;">Nombres</label>
+                    <input v-model="newManualPerson.names" required class="input-field" placeholder="Ej: Juan Pedro" style="height: 42px;" />
+                  </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                  <div>
+                    <label style="display: block; font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 6px;">DNI / Documento</label>
+                    <input v-model="newManualPerson.idNumber" required class="input-field" placeholder="Ej: 34567890" style="height: 42px;" />
+                  </div>
+                  <div>
+                    <label style="display: block; font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 6px;">Fecha de Nacimiento</label>
+                    <input v-model="newManualPerson.birthDate" class="input-field" placeholder="DD/MM/YYYY" style="height: 42px;" />
+                  </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                  <div>
+                    <label style="display: block; font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 6px;">Género</label>
+                    <select v-model="newManualPerson.gender" class="input-field" style="height: 42px;">
+                      <option value="M">Masculino</option>
+                      <option value="F">Femenino</option>
+                      <option value="X">No Binario / Otro</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style="display: block; font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 6px;">Nacionalidad</label>
+                    <input v-model="newManualPerson.nationality" class="input-field" placeholder="Ej: Argentina" style="height: 42px;" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Section: Domicilio / Ubicación (Shared) -->
+              <div style="display: flex; flex-direction: column; gap: 16px; margin-top: 16px; border-top: 1px solid #e2e8f0; padding-top: 16px;">
+                <h4 style="margin: 0; color: #334155; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em;">Domicilio</h4>
+                
+                <div>
+                  <label style="display: block; font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 6px;">Calle y Altura</label>
+                  <input v-model="newManualPerson.address" class="input-field" placeholder="Ej: Av. 9 de Julio 1234" style="height: 42px;" />
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                  <div>
+                    <label style="display: block; font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 6px;">Localidad</label>
+                    <input v-model="newManualPerson.city" class="input-field" placeholder="Ej: Lanús" style="height: 42px;" />
+                  </div>
+                  <div>
+                    <label style="display: block; font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 700; margin-bottom: 6px;">Provincia</label>
+                    <input v-model="newManualPerson.province" class="input-field" placeholder="Ej: Buenos Aires" style="height: 42px;" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Submit button -->
+              <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 32px;">
+                <button type="button" class="btn btn-secondary" style="height: 44px; padding: 0 24px;" @click="activeTab = 'registry'">Cancelar</button>
+                <button type="submit" class="btn btn-primary" style="height: 44px; padding: 0 32px; background: #7c3aed; border-color: #7c3aed;">
+                  💾 Registrar Alta
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
 
         <!-- Base de Datos -->
         <section v-if="activeTab === 'database'">

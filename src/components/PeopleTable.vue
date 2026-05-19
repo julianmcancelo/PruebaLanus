@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Trash2, ExternalLink, User, CreditCard, Calendar, MapPin, Users } from 'lucide-vue-next';
+import { Trash2, ExternalLink, User, CreditCard, Calendar, MapPin, Users, Building2 } from 'lucide-vue-next';
 
 defineProps<{
   people: any[]
@@ -14,8 +14,8 @@ defineEmits(['delete', 'view']);
       <thead>
         <tr>
           <th>Persona</th>
-          <th>DNI / Trámite</th>
-          <th>Nacimiento</th>
+          <th>DNI / CUIT</th>
+          <th>Nacimiento / IGJ</th>
           <th>Ubicación</th>
           <th>Acciones</th>
         </tr>
@@ -24,29 +24,41 @@ defineEmits(['delete', 'view']);
         <tr v-for="person in people" :key="person.idNumber" class="person-row">
           <td>
             <div class="person-info">
-              <div class="person-avatar" v-if="!person.photo"><User :size="16" /></div>
+              <div class="person-avatar" v-if="!person.photo" :style="person.tipoPersona === 'juridica' ? 'background: rgba(124, 58, 237, 0.1); color: #7c3aed;' : ''">
+                <Building2 v-if="person.tipoPersona === 'juridica'" :size="16" />
+                <User v-else :size="16" />
+              </div>
               <img v-else :src="`data:image/jpeg;base64,${person.photo}`" class="person-thumb" />
               <div>
-                <div class="name">{{ person.surname }}, {{ person.names }}</div>
-                <div class="gender">{{ person.gender || 'No especificado' }}</div>
+                <div class="name">
+                  <span v-if="person.tipoPersona === 'juridica'">[{{ person.tipoSocietario || 'S.A./S.R.L.' }}] {{ person.surname }}</span>
+                  <span v-else>{{ person.surname }}, {{ person.names }}</span>
+                </div>
+                <div class="gender">
+                  <span v-if="person.tipoPersona === 'juridica'">Representante: {{ person.repNombre || 'No asignado' }}</span>
+                  <span v-else>{{ person.gender || 'No especificado' }}</span>
+                </div>
               </div>
             </div>
           </td>
           <td>
             <div class="document-badges">
-              <div class="id-badge">
+              <div class="id-badge" :style="person.tipoPersona === 'juridica' ? 'background: #f5f3ff; border-color: #ddd6fe; color: #7c3aed;' : ''">
                 <CreditCard :size="14" />
-                {{ person.idNumber }}
+                {{ person.tipoPersona === 'juridica' ? 'CUIT ' : '' }}{{ person.idNumber }}
               </div>
-              <div class="tramite-badge" v-if="person.processNumber">
+              <div class="tramite-badge" v-if="person.processNumber && person.tipoPersona !== 'juridica'">
                 T: {{ person.processNumber }}
+              </div>
+              <div class="tramite-badge" v-else-if="person.tipoPersona === 'juridica' && person.nroIgj" style="color: #7c3aed; font-weight: 600;">
+                Reg. IGJ: {{ person.nroIgj }}
               </div>
             </div>
           </td>
           <td>
             <div class="date-info">
               <Calendar :size="14" />
-              {{ person.birthDate }}
+              {{ person.tipoPersona === 'juridica' ? (person.fechaInscripcionIgj || 'Sin fecha') : (person.birthDate || '---') }}
             </div>
           </td>
           <td>
