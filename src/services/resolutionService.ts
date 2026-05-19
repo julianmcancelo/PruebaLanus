@@ -2,6 +2,23 @@ import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
 import { saveAs } from 'file-saver';
 
+// Helper to clean internal codes and formatting symbols from values
+function cleanValue(val: any): string {
+  if (val === undefined || val === null) return '---';
+  let str = String(val);
+  
+  // Remove starting/middle CP- (case-insensitive) from the model/text
+  str = str.replace(/\bCP-/gi, '');
+  
+  // Remove any stray $ symbols
+  str = str.replace(/\$/g, '');
+  
+  // Normalize double whitespaces
+  str = str.replace(/\s+/g, ' ');
+  
+  return str.trim() || '---';
+}
+
 export async function generateResolutionDOCX(type: 'escolar' | 'remis', data: any) {
   const templatePath = type === 'escolar' 
     ? '/templates/Resoluciones/resolucion_escolar_template.docx'
@@ -30,31 +47,33 @@ export async function generateResolutionDOCX(type: 'escolar' | 'remis', data: an
     const isFemale = gender === 'F';
     const tratamiento = isFemale ? 'la Sra.' : 'el Sr.';
 
-    // Process data for template
+    // Process and sanitize data for template
+    const rawTitular = data.person ? `${data.person.surname}, ${data.person.names}` : (data.hab?.titular || '---');
+    
     const templateData = {
-      expediente_nro: data.hab?.nroExpediente || '---',
+      expediente_nro: cleanValue(data.hab?.nroExpediente),
       tratamiento: tratamiento,
-      titular_nombre: data.person ? `${data.person.surname}, ${data.person.names}` : (data.hab?.titular || '---'),
-      titular_con_tratamiento: `${tratamiento} ${data.person ? `${data.person.surname}, ${data.person.names}` : (data.hab?.titular || '---')}`,
-      titular_dni: data.person?.idNumber || data.hab?.idNumber || '---',
-      titular_domicilio_calle: data.person?.address || data.hab?.address || '---',
-      titular_domicilio_localidad: data.person?.city || data.hab?.locality || 'LANÚS',
-      vehiculo_marca: data.title?.marca || '---',
-      vehiculo_modelo: data.title?.modelo || '---',
-      vehiculo_inscripcion_inicial: data.title?.fechaInscripcion || '---',
-      vehiculo_tipo: data.title?.tipo || '---',
-      vehiculo_dominio: data.hab?.dominio || '---',
-      licencia_nro: data.hab?.nroLicencia || '---',
+      titular_nombre: cleanValue(rawTitular),
+      titular_con_tratamiento: `${tratamiento} ${cleanValue(rawTitular)}`,
+      titular_dni: cleanValue(data.person?.idNumber || data.hab?.idNumber),
+      titular_domicilio_calle: cleanValue(data.person?.address || data.hab?.address),
+      titular_domicilio_localidad: cleanValue(data.person?.city || data.hab?.locality || 'LANÚS'),
+      vehiculo_marca: cleanValue(data.title?.marca),
+      vehiculo_modelo: cleanValue(data.title?.modelo),
+      vehiculo_inscripcion_inicial: cleanValue(data.title?.fechaInscripcion),
+      vehiculo_tipo: cleanValue(data.title?.tipo),
+      vehiculo_dominio: cleanValue(data.hab?.dominio),
+      licencia_nro: cleanValue(data.hab?.nroLicencia),
       propiedad_de: isFemale ? 'de su propiedad, la Sra.' : 'de su propiedad, el Sr.',
       domiciliada: isFemale ? 'domiciliada' : 'domiciliado',
-      vehiculo_anho: data.title?.anioModelo || '---',
-      vehiculo_anho_short: (data.title?.anioModelo || '').toString().slice(-2),
-      // Remis specific
-      expte_remiseria: data.remiseria?.expediente || '---',
-      cuenta_remiseria: data.remiseria?.cuenta || '---',
-      nombre_remiseria: data.remiseria?.nombre || '---',
-      domicilio_remiseria: data.remiseria?.domicilio || '---',
-      vehiculo_motor: data.title?.motor || '---',
+      vehiculo_anho: cleanValue(data.title?.anioModelo),
+      vehiculo_anho_short: cleanValue((data.title?.anioModelo || '').toString().slice(-2)),
+      // Remis specific (Agencia receptora)
+      expte_remiseria: cleanValue(data.remiseria?.expediente),
+      cuenta_remiseria: cleanValue(data.remiseria?.cuenta),
+      nombre_remiseria: cleanValue(data.remiseria?.nombre),
+      domicilio_remiseria: cleanValue(data.remiseria?.domicilio),
+      vehiculo_motor: cleanValue(data.title?.motor),
     };
 
     doc.render(templateData);
@@ -108,18 +127,20 @@ export async function generateElevacionTribunalDOCX(data: any) {
     const gender = data.person?.gender?.toUpperCase() || 'M';
     const isFemale = gender === 'F';
 
-    // Process data for template
+    // Process and sanitize data for template
+    const rawTitular = data.person ? `${data.person.surname}, ${data.person.names}` : (data.hab?.titular || '---');
+
     const templateData = {
-      expediente_nro: data.hab?.nroExpediente || '---',
+      expediente_nro: cleanValue(data.hab?.nroExpediente),
       tratamiento: isFemale ? 'la Sra.' : 'el Sr.',
-      titular_nombre: data.person ? `${data.person.surname}, ${data.person.names}` : (data.hab?.titular || '---'),
-      titular_dni: data.person?.idNumber || data.hab?.idNumber || '---',
-      titular_domicilio: data.person?.address || data.hab?.address || '---',
-      titular_localidad: data.person?.city || data.hab?.locality || 'LANÚS',
-      vehiculo_marca: data.title?.marca || '---',
-      vehiculo_modelo: data.title?.modelo || '---',
-      vehiculo_dominio: data.hab?.dominio || '---',
-      licencia_nro: data.hab?.nroLicencia || '---',
+      titular_nombre: cleanValue(rawTitular),
+      titular_dni: cleanValue(data.person?.idNumber || data.hab?.idNumber),
+      titular_domicilio: cleanValue(data.person?.address || data.hab?.address),
+      titular_localidad: cleanValue(data.person?.city || data.hab?.locality || 'LANÚS'),
+      vehiculo_marca: cleanValue(data.title?.marca),
+      vehiculo_modelo: cleanValue(data.title?.modelo),
+      vehiculo_dominio: cleanValue(data.hab?.dominio),
+      licencia_nro: cleanValue(data.hab?.nroLicencia),
       fecha_hoy: new Date().toLocaleDateString('es-AR'),
       anho_actual: new Date().getFullYear(),
       tribunal_nro: data.tribunalNro || '1',

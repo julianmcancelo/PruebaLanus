@@ -649,11 +649,12 @@ const handleDownloadInspectionExcel = async (hab: any) => {
 const handleGenerateResolution = async (hab: any) => {
   const person = getLinkedPersonByHab(hab);
   const title = getLinkedTitleByHab(hab.dominio);
+  const remiseria = schools.value.find(s => hab.idColegios?.includes(s.id));
   
   const type = hab.tipoHabilitacion?.toLowerCase() === 'remis' ? 'remis' : 'escolar';
   
   try {
-    await generateResolutionDOCX(type as any, { hab, person, title });
+    await generateResolutionDOCX(type as any, { hab, person, title, remiseria });
     showToast('Resolución generada correctamente', 'success');
   } catch (error: any) {
     showToast(`Error al generar resolución: ${error.message}`, 'error');
@@ -663,8 +664,9 @@ const handleGenerateResolution = async (hab: any) => {
 const handleGenerateElevacion = async (hab: any) => {
   const person = getLinkedPersonByHab(hab);
   const title = getLinkedTitleByHab(hab.dominio);
+  const remiseria = schools.value.find(s => hab.idColegios?.includes(s.id));
   try {
-    await generateElevacionTribunalDOCX({ hab, person, title });
+    await generateElevacionTribunalDOCX({ hab, person, title, remiseria });
     showToast('Elevación a tribunal generada', 'success');
   } catch (error: any) {
     showToast(`Error al generar elevación: ${error.message}`, 'error');
