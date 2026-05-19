@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { 
   X, School, User, Car, FileSignature, 
   ClipboardCheck, FileSpreadsheet, Eye, Printer, Hash, Sparkles, Loader2,
@@ -31,6 +31,17 @@ const editableExpediente = ref(props.school.expediente || '');
 const editableCuenta = ref(props.school.cuenta || '');
 const isSavingAddress = ref(false);
 const isEnriching = ref(false);
+
+watch(() => props.school, (newSchool) => {
+  if (newSchool) {
+    editableNombre.value = newSchool.nombre || '';
+    editableAddress.value = newSchool.domicilio || '';
+    editableTelefono.value = newSchool.telefono || '';
+    editableTipo.value = newSchool.tipo || 'Colegio';
+    editableExpediente.value = newSchool.expediente || '';
+    editableCuenta.value = newSchool.cuenta || '';
+  }
+}, { deep: true });
 
 const mapUrl = computed(() => {
   if (!editableAddress.value) return '';
