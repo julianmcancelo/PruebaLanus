@@ -19,6 +19,24 @@ function cleanValue(val: any): string {
   return str.trim() || '---';
 }
 
+// Cleans template XMLs inside the zip of any stray $ symbols preceding tags (like ${var} or $---)
+function sanitizeTemplateXML(zip: PizZip) {
+  for (const fileName in zip.files) {
+    if (fileName.endsWith('.xml')) {
+      let fileContent = zip.files[fileName].asText();
+      
+      // Remove $ preceding template tags (handles split XML tags between $ and {)
+      fileContent = fileContent.replace(/\$(<[^>]+>)*\{/g, '$1{');
+      
+      // Also remove any literal $ followed by dashes (like $---)
+      fileContent = fileContent.replace(/\$--+/g, '---');
+      
+      // Save sanitized XML back into PizZip
+      zip.file(fileName, fileContent);
+    }
+  }
+}
+
 export async function generateResolutionDOCX(type: 'escolar' | 'remis', data: any) {
   const templatePath = type === 'escolar' 
     ? '/templates/Resoluciones/resolucion_escolar_template.docx'
@@ -28,6 +46,10 @@ export async function generateResolutionDOCX(type: 'escolar' | 'remis', data: an
     const response = await fetch(templatePath);
     const content = await response.arrayBuffer();
     const zip = new PizZip(content);
+    
+    // Sanitize the Word template ZIP XMLs before rendering
+    sanitizeTemplateXML(zip);
+
     const doc = new Docxtemplater(zip, {
       paragraphLoop: true,
       linebreaks: true,
@@ -118,6 +140,10 @@ export async function generateElevacionTribunalDOCX(data: any) {
     const response = await fetch(templatePath);
     const content = await response.arrayBuffer();
     const zip = new PizZip(content);
+    
+    // Sanitize the Word template ZIP XMLs before rendering
+    sanitizeTemplateXML(zip);
+
     const doc = new Docxtemplater(zip, {
       paragraphLoop: true,
       linebreaks: true,
