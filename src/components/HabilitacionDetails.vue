@@ -45,6 +45,17 @@ const toggleSchool = (id: any) => {
   else editedHab.value.idColegios.push(id);
 };
 
+const toggleGestdoc = () => {
+  if (isEditing.value) {
+    if (editedHab.value) {
+      editedHab.value.cargadoGestdoc = !editedHab.value.cargadoGestdoc;
+    }
+  } else {
+    const updated = { ...props.hab, cargadoGestdoc: !props.hab.cargadoGestdoc };
+    emit('update', updated);
+  }
+};
+
 const selectVehicle = (dominio: string) => {
   if (isEditing.value) {
     editedHab.value.dominio = dominio;
@@ -137,6 +148,16 @@ const linkedSchools = computed(() => {
           <div v-if="hab.dominio" class="info-chip dominio">
             <Car :size="14" />
             <span><strong>{{ hab.dominio }}</strong></span>
+          </div>
+          <div 
+            class="info-chip gestdoc-chip" 
+            :class="{ 'cargado': isEditing ? (editedHab && editedHab.cargadoGestdoc) : hab.cargadoGestdoc }"
+            @click="toggleGestdoc"
+            :title="isEditing ? 'Click para cambiar estado GestDoc' : 'Click para cambiar estado GestDoc'"
+          >
+            <CheckCircle2 v-if="isEditing ? (editedHab && editedHab.cargadoGestdoc) : hab.cargadoGestdoc" :size="14" />
+            <AlertCircle v-else :size="14" />
+            <span>GestDoc: <strong>{{ (isEditing ? (editedHab && editedHab.cargadoGestdoc) : hab.cargadoGestdoc) ? 'Cargado' : 'Pendiente' }}</strong></span>
           </div>
           <div v-if="linkedSchools.length > 0" class="info-chip schools">
             <School :size="14" />
@@ -541,6 +562,29 @@ const linkedSchools = computed(() => {
 
 .info-chip.schools {
   background: rgba(34, 197, 94, 0.25);
+}
+
+.info-chip.gestdoc-chip {
+  cursor: pointer;
+  background: rgba(148, 163, 184, 0.25);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.info-chip.gestdoc-chip:hover {
+  background: rgba(148, 163, 184, 0.4);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.info-chip.gestdoc-chip.cargado {
+  background: rgba(16, 185, 129, 0.35);
+  border-color: rgba(16, 185, 129, 0.5);
+}
+
+.info-chip.gestdoc-chip.cargado:hover {
+  background: rgba(16, 185, 129, 0.5);
 }
 
 /* Body */

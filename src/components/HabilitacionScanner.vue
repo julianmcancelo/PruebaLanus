@@ -79,7 +79,17 @@ const runExtraction = async () => {
   isProcessing.value = true;
   try {
     const data = await extractHabilitacionData(images.value);
-    extractedResult.value = data;
+    extractedResult.value = {
+      nroExpediente: '',
+      nroLicencia: '',
+      titular: '',
+      idNumber: '',
+      dominio: '',
+      tipoTramite: '',
+      tipoHabilitacion: 'Escolar',
+      cargadoGestdoc: false,
+      ...data
+    };
     images.value = [];
   } catch (err) {
     error.value = 'Error en la extracción por IA.';
@@ -170,6 +180,12 @@ const removeImage = (index: number) => images.value.splice(index, 1);
               @click="extractedResult.tipoHabilitacion = 'Remis'"
             >Remis</button>
           </div>
+        </div>
+        <div class="field full-width gestdoc-field">
+          <label class="checkbox-label">
+            <input type="checkbox" v-model="extractedResult.cargadoGestdoc" class="gestdoc-checkbox" />
+            <span class="checkbox-text">¿Cargado en GestDoc? (Tildar si ya fue subido al sistema municipal)</span>
+          </label>
         </div>
       </div>
       <div class="preview-actions">
@@ -318,4 +334,32 @@ const removeImage = (index: number) => images.value.splice(index, 1);
 
 .spin { animation: rotate 1s linear infinite; color: var(--primary); }
 @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+.gestdoc-field {
+  margin-top: 8px;
+  background: white;
+  padding: 12px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border-light);
+}
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.gestdoc-checkbox {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 2px solid var(--border-light);
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+.checkbox-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+}
 </style>

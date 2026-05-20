@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue';
 import * as XLSX from 'xlsx';
-import ExcelJS from 'exceljs';
 import { Users, Database, Settings, LogOut, Search, Plus, FilePlus, Scissors, Eye, Car, School, ClipboardCheck, FileText, Download, AlertTriangle, Building2, ClipboardList, Info, Trash2, Zap, Loader2, Upload, FileSignature } from 'lucide-vue-next';
 import DniScanner from './components/DniScanner.vue';
 import PeopleTable from './components/PeopleTable.vue';
@@ -492,6 +491,16 @@ const handleHabilitacionUpdate = async (updatedData: any) => {
   }
 };
 
+const handleToggleGestdoc = async (hab: any) => {
+  if (hab && hab.id) {
+    const updated = { ...hab, cargadoGestdoc: !hab.cargadoGestdoc };
+    const dataToSave = JSON.parse(JSON.stringify(updated));
+    await updateHabilitacion(hab.id, dataToSave);
+    await loadData();
+    showToast(`Habilitación ${hab.nroExpediente} marcada como ${updated.cargadoGestdoc ? 'CARGADA' : 'PENDIENTE'} en GestDoc`, 'success');
+  }
+};
+
 const handleExportDB = async () => {
   try {
     const data = await exportLegacyDatabase();
@@ -604,15 +613,28 @@ const handleDownloadInspectionExcel = async (hab: any) => {
   const isRemis = hab.tipoHabilitacion?.toLowerCase() === 'remis';
   
   const templatePath = isRemis 
-    ? '/templates/HABILITACIONES 2026 (1).xlsx'
+    ? '/templates/ActaInspeccionRemisTemplate.xlsx'
     : '/templates/ActaInspeccionTemplate.xlsx';
 
   try {
     const response = await fetch(templatePath);
-    if (!response.ok) throw new Error('No se pudo cargar la plantilla de Excel');
+    if (!response.ok) throw new Error('No se pudo cargar la plantilla de Excel desde el servidor.');
     
+    const contentType = response.headers.get('content-type') || '';
+    if (contentType.includes('text/html')) {
+      throw new Error('La plantilla cargada es una página HTML (posible error 404 del servidor). Verifique que el archivo exista en public/templates/.');
+    }
+
     const arrayBuffer = await response.arrayBuffer();
-    const workbook = new ExcelJS.Workbook();
+    
+    // Validar firma binaria ZIP ('PK') para asegurar que es un XLSX real
+    const bytes = new Uint8Array(arrayBuffer.slice(0, 2));
+    if (bytes[0] !== 0x50 || bytes[1] !== 0x4B) { // 'P' and 'K'
+      throw new Error('El archivo descargado no es un documento de Excel válido. Posible error de enrutamiento en el servidor.');
+    }
+
+    const ExcelJS = await import('exceljs');
+    const workbook = new (ExcelJS.default || ExcelJS).Workbook();
     await workbook.xlsx.load(arrayBuffer);
     const worksheet = workbook.worksheets[0];
 
@@ -1269,6 +1291,7 @@ const linkSchoolToHab = async (schoolId: any, habId: any) => {
             @print-inspection-excel="handleDownloadInspectionExcel"
             @generate-resolution="handleGenerateResolution"
             @generate-elevacion="handleGenerateElevacion"
+            @toggle-gestdoc="handleToggleGestdoc"
           />
         </section>
 

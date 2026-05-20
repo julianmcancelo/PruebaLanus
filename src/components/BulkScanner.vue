@@ -197,7 +197,10 @@ const saveAll = async () => {
         const result = await saveTitle(res.data);
         if (result.isDuplicate) dupCount++;
       } else if (res.type === 'habilitacion') {
-        const hData = { ...res.data };
+        const hData = {
+          cargadoGestdoc: false,
+          ...res.data
+        };
         
         // Try to link agency if name is provided
         if (hData.agencia) {
