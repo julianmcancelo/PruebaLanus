@@ -612,9 +612,7 @@ const handleDownloadInspectionExcel = async (hab: any) => {
   const person = getLinkedPersonByHab(hab);
   const isRemis = hab.tipoHabilitacion?.toLowerCase() === 'remis';
   
-  const templatePath = isRemis 
-    ? '/templates/ActaInspeccionRemisTemplate.xlsx'
-    : '/templates/ActaInspeccionTemplate.xlsx';
+  const templatePath = '/templates/ActaInspeccionTemplate.xlsx';
 
   try {
     const response = await fetch(templatePath);
@@ -640,86 +638,21 @@ const handleDownloadInspectionExcel = async (hab: any) => {
 
     if (!worksheet) throw new Error('No se encontró la hoja en el Excel');
 
-    if (isRemis) {
-      // Remis Template Mapping
-      worksheet.getCell('H4').value = new Date().toLocaleDateString('es-AR');
-      worksheet.getCell('C7').value = hab.nroExpediente || '---';
-      worksheet.getCell('G8').value = hab.nroLicencia || '---';
-      
-      const fullName = person ? `${person.surname}, ${person.names}` : (hab.titular || '---');
-      worksheet.getCell('C10').value = fullName; // Quien se presenta
-      worksheet.getCell('C11').value = person?.idNumber || hab.idNumber || '---';
-      worksheet.getCell('C12').value = person?.address || '---';
-      
-      worksheet.getCell('C14').value = fullName; // Titular
-      worksheet.getCell('C15').value = person?.idNumber || hab.idNumber || '---';
-      worksheet.getCell('C16').value = person?.address || '---';
+    // Unified Template Mapping (Works identical to Escolar)
+    worksheet.getCell('B4').value = hab.nroExpediente || '---';
+    worksheet.getCell('F4').value = hab.nroLicencia || '---';
+    
+    worksheet.getCell('B6').value = person ? `${person.surname}, ${person.names}` : (hab.titular || '---');
+    worksheet.getCell('B7').value = person?.idNumber || hab.idNumber || '---';
+    worksheet.getCell('B8').value = person?.address || '---';
+    worksheet.getCell('B9').value = hab.anioHabilitacion || new Date().getFullYear().toString();
+    worksheet.getCell('B10').value = person?.phone || hab.phone || '---';
 
-      worksheet.getCell('G10').value = hab.dominio || '---';
-      worksheet.getCell('G11').value = title?.marca || '---';
-      worksheet.getCell('G12').value = title?.modelo || '---';
-      worksheet.getCell('G13').value = title?.anioModelo || '---';
-      worksheet.getCell('G14').value = title?.fechaInscripcion || '---';
-      worksheet.getCell('G15').value = title?.tipo || 'REMIS';
-      
-      // Linked Agency
-      const agency = schools.value.find(s => hab.idColegios?.includes(s.id));
-      worksheet.getCell('G16').value = agency ? agency.nombre : '---';
-
-      // Checklist Mapping (if an inspection exists for this dominio)
-      const lastInsp = inspections.value
-        .filter(i => i.dominio === hab.dominio)
-        .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())[0];
-
-      if (lastInsp && lastInsp.checklist) {
-        // We map common keywords to the Remis Excel rows (21 to 30)
-        const mapping = [
-          { row: 21, keywords: ['luces', 'faro', 'giro'] },
-          { row: 22, keywords: ['freno', 'pastilla'] },
-          { row: 23, keywords: ['neumatico', 'rueda', 'cubierta'] },
-          { row: 24, keywords: ['limpia', 'parabrisa'] },
-          { row: 25, keywords: ['espejo', 'retrovisor'] },
-          { row: 26, keywords: ['instrumental', 'veloci', 'tablero'] },
-          { row: 27, keywords: ['cinturon', 'seguridad'] },
-          { row: 28, keywords: ['matafuego', 'extintor'] },
-          { row: 29, keywords: ['kit', 'botiquin', 'emergencia'] },
-          { row: 30, keywords: ['mampara', 'divisoria'] }
-        ];
-
-        mapping.forEach(m => {
-          const item = lastInsp.checklist.find((cli: any) => 
-            m.keywords.some(kw => cli.label.toLowerCase().includes(kw))
-          );
-          if (item) {
-            const status = item.status?.toLowerCase();
-            if (status === 'bien') worksheet.getCell(`F${m.row}`).value = 'X';
-            else if (status === 'regul' || status === 'regular') worksheet.getCell(`G${m.row}`).value = 'X';
-            else if (status === 'malo' || status === 'mal') worksheet.getCell(`H${m.row}`).value = 'X';
-            
-            if (item.motivo) worksheet.getCell(`I${m.row}`).value = item.motivo;
-          }
-        });
-        
-        if (lastInsp.observaciones) worksheet.getCell('C31').value = lastInsp.observaciones;
-      }
-
-    } else {
-      // Standard Escolar Template Mapping
-      worksheet.getCell('B4').value = hab.nroExpediente || '---';
-      worksheet.getCell('F4').value = hab.nroLicencia || '---';
-      
-      worksheet.getCell('B6').value = person ? `${person.surname}, ${person.names}` : (hab.titular || '---');
-      worksheet.getCell('B7').value = person?.idNumber || hab.idNumber || '---';
-      worksheet.getCell('B8').value = person?.address || '---';
-      worksheet.getCell('B9').value = hab.anioHabilitacion || new Date().getFullYear().toString();
-      worksheet.getCell('B10').value = person?.phone || hab.phone || '---';
-
-      worksheet.getCell('F6').value = hab.dominio || '---';
-      worksheet.getCell('F7').value = title?.marca || '---';
-      worksheet.getCell('F8').value = title?.modelo || '---';
-      worksheet.getCell('F9').value = title?.anioModelo || title?.anioFabricacion || '---';
-      worksheet.getCell('F10').value = title?.tipo || 'TRANSPORTE DE PASAJEROS';
-    }
+    worksheet.getCell('F6').value = hab.dominio || '---';
+    worksheet.getCell('F7').value = title?.marca || '---';
+    worksheet.getCell('F8').value = title?.modelo || '---';
+    worksheet.getCell('F9').value = title?.anioModelo || title?.anioFabricacion || '---';
+    worksheet.getCell('F10').value = isRemis ? 'REMIS' : (title?.tipo || 'TRANSPORTE DE PASAJEROS');
 
     // Generate and Download
     const buffer = await workbook.xlsx.writeBuffer();
