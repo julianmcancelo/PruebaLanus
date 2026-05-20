@@ -3,12 +3,13 @@ import { ref } from 'vue';
 import { ClipboardCheck, Save, X, Car, AlertTriangle, CheckCircle2 } from 'lucide-vue-next';
 
 const props = defineProps<{
-  titles: any[]
+  titles: any[],
+  prefilledDominio?: string
 }>();
 
 const emit = defineEmits(['save', 'cancel']);
 
-const dominio = ref('');
+const dominio = ref(props.prefilledDominio || '');
 const fecha = ref(new Date().toISOString().split('T')[0]);
 const resultado = ref('APROBADO');
 const observaciones = ref('');

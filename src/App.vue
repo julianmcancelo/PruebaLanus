@@ -53,6 +53,27 @@ const selectedInspection = ref<any>(null);
 const searchQuery = ref('');
 const isMigrating = ref(false);
 
+const inspectionTab = ref('realizadas');
+const prefilledInspectionDominio = ref('');
+
+const pendingInspections = computed(() => {
+  // Get all unique dominios that have inspections
+  const inspectedDominios = new Set(
+    inspections.value.map(i => (i.dominio || '').trim().toUpperCase())
+  );
+  
+  // Filter habilitaciones that DO NOT have an inspection registered for their dominio
+  return habilitaciones.value.filter(h => {
+    const dom = (h.dominio || '').trim().toUpperCase();
+    return dom && !inspectedDominios.has(dom);
+  });
+});
+
+const startPendingInspection = (dominio: string) => {
+  prefilledInspectionDominio.value = dominio;
+  activeTab.value = 'insp_new';
+};
+
 // Toast notifications
 interface Toast { id: number; message: string; type: 'success' | 'error' | 'warning' | 'info' }
 const toasts = ref<Toast[]>([]);
@@ -1283,15 +1304,118 @@ const linkSchoolToHab = async (schoolId: any, habId: any) => {
         <section v-if="activeTab === 'insp_list'">
           <div class="section-header">
             <div class="title-group">
-              <h2>Inspecciones</h2>
-              <p>Seguimiento técnico de unidades.</p>
+              <h2>Inspecciones Técnicas</h2>
+              <p>Seguimiento técnico y habilitación física de unidades.</p>
             </div>
             <div class="header-actions">
               <button class="btn btn-secondary" @click="activeTab = 'insp_scan'"><Scissors :size="16" /> Escanear</button>
-              <button class="btn btn-primary" @click="activeTab = 'insp_new'"><Plus :size="16" /> Nueva</button>
+              <button class="btn btn-primary" @click="prefilledInspectionDominio = ''; activeTab = 'insp_new'"><Plus :size="16" /> Nueva</button>
             </div>
           </div>
-          <InspectionsTable :inspections="filteredInspections" @delete="deleteInspeccion" @view="viewInspectionDetails" @print="handlePrintInspection" />
+
+          <!-- Tabs switcher -->
+          <div style="display: flex; gap: 8px; margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 8px;">
+            <button 
+              type="button"
+              :style="{ 
+                padding: '10px 20px', 
+                borderRadius: '10px', 
+                border: 'none',
+                background: inspectionTab === 'realizadas' ? 'linear-gradient(135deg, #7c3aed 0%, #6366f1 100%)' : 'white',
+                color: inspectionTab === 'realizadas' ? 'white' : '#64748b',
+                fontSize: '13px', 
+                fontWeight: '700',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                boxShadow: inspectionTab === 'realizadas' ? '0 4px 12px rgba(124, 58, 237, 0.2)' : 'none'
+              }"
+              @click="inspectionTab = 'realizadas'"
+            >
+              📋 Inspecciones Realizadas ({{ filteredInspections.length }})
+            </button>
+            <button 
+              type="button"
+              :style="{ 
+                padding: '10px 20px', 
+                borderRadius: '10px', 
+                border: 'none',
+                background: inspectionTab === 'pendientes' ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' : 'white',
+                color: inspectionTab === 'pendientes' ? 'white' : '#64748b',
+                fontSize: '13px', 
+                fontWeight: '700',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                boxShadow: inspectionTab === 'pendientes' ? '0 4px 12px rgba(245, 158, 11, 0.2)' : 'none'
+              }"
+              @click="inspectionTab = 'pendientes'"
+            >
+              ⏳ Pendientes de Carga ({{ pendingInspections.length }})
+            </button>
+          </div>
+
+          <!-- Completed Inspections View -->
+          <div v-if="inspectionTab === 'realizadas'">
+            <InspectionsTable :inspections="filteredInspections" @delete="deleteInspeccion" @view="viewInspectionDetails" @print="handlePrintInspection" />
+          </div>
+
+          <!-- Pending Inspections View -->
+          <div v-else class="table-container glass-card animate-fade">
+            <table v-if="pendingInspections.length > 0" style="width: 100%; border-collapse: collapse; text-align: left;">
+              <thead>
+                <tr>
+                  <th style="padding: 16px 24px; background: #f8fafc; color: #64748b; font-size: 12px; font-weight: 700; text-transform: uppercase;">Unidad (Patente)</th>
+                  <th style="padding: 16px 24px; background: #f8fafc; color: #64748b; font-size: 12px; font-weight: 700; text-transform: uppercase;">Titular de Licencia</th>
+                  <th style="padding: 16px 24px; background: #f8fafc; color: #64748b; font-size: 12px; font-weight: 700; text-transform: uppercase;">N° Expediente</th>
+                  <th style="padding: 16px 24px; background: #f8fafc; color: #64748b; font-size: 12px; font-weight: 700; text-transform: uppercase;">Servicio</th>
+                  <th style="padding: 16px 24px; background: #f8fafc; color: #64748b; font-size: 12px; font-weight: 700; text-transform: uppercase; text-align: right;">Acción</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="hab in pendingInspections" :key="hab.id" style="border-bottom: 1px solid #e2e8f0; transition: all 0.2s;">
+                  <td style="padding: 16px 24px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                      <div style="background: rgba(245, 158, 11, 0.1); color: #d97706; padding: 8px; border-radius: 8px; font-weight: 700; display: flex; align-items: center;">
+                        <Car :size="16" />
+                      </div>
+                      <span style="font-weight: 800; font-family: monospace; font-size: 15px; color: #1e293b;">{{ hab.dominio }}</span>
+                    </div>
+                  </td>
+                  <td style="padding: 16px 24px; font-weight: 600; color: #334155;">
+                    {{ hab.titular || '---' }}
+                  </td>
+                  <td style="padding: 16px 24px; font-weight: 600; font-family: monospace; color: #64748b;">
+                    {{ hab.nroExpediente || '---' }}
+                  </td>
+                  <td style="padding: 16px 24px;">
+                    <span :style="{ 
+                      padding: '4px 10px', 
+                      borderRadius: '8px', 
+                      fontSize: '11px', 
+                      fontWeight: '800',
+                      textTransform: 'uppercase',
+                      background: hab.tipoHabilitacion?.toLowerCase() === 'remis' ? '#ecfdf5' : '#eff6ff',
+                      color: hab.tipoHabilitacion?.toLowerCase() === 'remis' ? '#059669' : '#2563eb'
+                    }">{{ hab.tipoHabilitacion || 'Escolar' }}</span>
+                  </td>
+                  <td style="padding: 16px 24px; text-align: right;">
+                    <button 
+                      class="btn btn-primary" 
+                      style="background: #f59e0b; border-color: #f59e0b; padding: 6px 14px; font-size: 12px; font-weight: 700; height: auto;"
+                      @click="startPendingInspection(hab.dominio)"
+                    >
+                      ⚡ Realizar Inspección
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            
+            <div v-else style="padding: 60px; text-align: center; color: #64748b;">
+              <CheckCircle2 :size="48" style="opacity: 0.2; color: #16a34a; margin-bottom: 12px; display: inline-block;" />
+              <h3 style="color: #1e293b; margin-top: 8px;">¡Todas las unidades al día!</h3>
+              <p>No hay habilitaciones pendientes de inspección técnica en este momento.</p>
+            </div>
+          </div>
         </section>
 
         <div v-if="activeTab === 'insp_scan'">
@@ -1307,7 +1431,12 @@ const linkSchoolToHab = async (schoolId: any, habId: any) => {
             <h1>Nueva Inspección Técnica</h1>
             <button class="btn" @click="activeTab = 'insp_list'">Cancelar</button>
           </div>
-          <NewInspection :titles="titles" @save="handleInspeccionAdded" @cancel="activeTab = 'insp_list'" />
+          <NewInspection 
+            :titles="titles" 
+            :prefilledDominio="prefilledInspectionDominio" 
+            @save="handleInspeccionAdded" 
+            @cancel="activeTab = 'insp_list'" 
+          />
         </div>
 
         <!-- PDF Tools Tabs -->
