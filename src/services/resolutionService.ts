@@ -56,11 +56,11 @@ export async function generateResolutionDOCX(type: 'escolar' | 'remis', data: an
       linebreaks: true,
     });
 
-    // Determine gender (M/F)
+    const isJuridica = data.person?.tipoPersona === 'juridica';
+
+    // Determine gender (M/F) if physical person
     let gender = data.person?.gender?.toUpperCase();
-    
-    // Simple heuristic if gender is missing: check if names end in 'A'
-    if (!gender && data.hab?.titular) {
+    if (!gender && data.hab?.titular && !isJuridica) {
       const firstName = data.hab.titular.trim().split(' ').pop() || '';
       gender = firstName.endsWith('A') ? 'F' : 'M';
     } else if (!gender) {
@@ -68,16 +68,43 @@ export async function generateResolutionDOCX(type: 'escolar' | 'remis', data: an
     }
 
     const isFemale = gender === 'F';
-    const tratamiento = isFemale ? 'la Sra.' : 'el Sr.';
-
-    // Process and sanitize data for template
-    const rawTitular = data.person ? `${data.person.surname}, ${data.person.names}` : (data.hab?.titular || '---');
     
+    // Process and sanitize data for template
+    let rawTitular = '---';
+    let tratamiento = 'el Sr.';
+    let propiedadDe = 'de su propiedad, el Sr.';
+    let domiciliada = 'domiciliado';
+
+    if (data.person) {
+      if (isJuridica) {
+        const societario = data.person.tipoSocietario || 'S.A.';
+        const razonSocial = data.person.surname || '---';
+        rawTitular = `${razonSocial} ${societario}`.trim();
+        tratamiento = 'la firma';
+        propiedadDe = 'de propiedad de la firma';
+        domiciliada = 'con domicilio legal en';
+      } else {
+        rawTitular = `${data.person.surname}, ${data.person.names}`;
+        tratamiento = isFemale ? 'la Sra.' : 'el Sr.';
+        propiedadDe = isFemale ? 'de su propiedad, la Sra.' : 'de su propiedad, el Sr.';
+        domiciliada = isFemale ? 'domiciliada' : 'domiciliado';
+      }
+    } else if (data.hab?.titular) {
+      rawTitular = data.hab.titular;
+      tratamiento = isFemale ? 'la Sra.' : 'el Sr.';
+      propiedadDe = isFemale ? 'de su propiedad, la Sra.' : 'de su propiedad, el Sr.';
+      domiciliada = isFemale ? 'domiciliada' : 'domiciliado';
+    }
+
+    const titularConTratamiento = isJuridica 
+      ? `${tratamiento} ${cleanValue(rawTitular)}` 
+      : `${tratamiento} ${cleanValue(rawTitular)}`;
+
     const templateData = {
       expediente_nro: cleanValue(data.hab?.nroExpediente),
       tratamiento: tratamiento,
       titular_nombre: cleanValue(rawTitular),
-      titular_con_tratamiento: `${tratamiento} ${cleanValue(rawTitular)}`,
+      titular_con_tratamiento: titularConTratamiento,
       titular_dni: cleanValue(data.person?.idNumber || data.hab?.idNumber),
       titular_domicilio_calle: cleanValue(data.person?.address || data.hab?.address),
       titular_domicilio_localidad: cleanValue(data.person?.city || data.hab?.locality || 'LANÚS'),
@@ -87,8 +114,8 @@ export async function generateResolutionDOCX(type: 'escolar' | 'remis', data: an
       vehiculo_tipo: cleanValue(data.title?.tipo),
       vehiculo_dominio: cleanValue(data.hab?.dominio),
       licencia_nro: cleanValue(data.hab?.nroLicencia),
-      propiedad_de: isFemale ? 'de su propiedad, la Sra.' : 'de su propiedad, el Sr.',
-      domiciliada: isFemale ? 'domiciliada' : 'domiciliado',
+      propiedad_de: propiedadDe,
+      domiciliada: domiciliada,
       vehiculo_anho: cleanValue(data.title?.anioModelo),
       vehiculo_anho_short: cleanValue((data.title?.anioModelo || '').toString().slice(-2)),
       // Remis specific (Agencia receptora)
@@ -97,6 +124,13 @@ export async function generateResolutionDOCX(type: 'escolar' | 'remis', data: an
       nombre_remiseria: cleanValue(data.remiseria?.nombre),
       domicilio_remiseria: cleanValue(data.remiseria?.domicilio),
       vehiculo_motor: cleanValue(data.title?.motor),
+      // IGJ & Estatuto (Jurídica)
+      titular_igj: cleanValue(data.person?.nroIgj),
+      titular_igj_fecha: cleanValue(data.person?.fechaInscripcionIgj),
+      titular_estatuto_fecha: cleanValue(data.person?.fechaEstatuto),
+      representante_nombre: cleanValue(data.person?.repNombre),
+      representante_dni: cleanValue(data.person?.repDni),
+      representante_cargo: cleanValue(data.person?.repCargo),
     };
 
     doc.render(templateData);
@@ -110,8 +144,13 @@ export async function generateResolutionDOCX(type: 'escolar' | 'remis', data: an
     let name = '';
     let surname = '';
     if (data.person) {
-      name = clean(data.person.names);
-      surname = clean(data.person.surname);
+      if (isJuridica) {
+        surname = clean(data.person.surname);
+        name = clean(data.person.tipoSocietario || 'SA_SRL');
+      } else {
+        name = clean(data.person.names);
+        surname = clean(data.person.surname);
+      }
     } else if (data.hab?.titular) {
       if (data.hab.titular.includes(',')) {
         const parts = data.hab.titular.split(',');
@@ -150,16 +189,34 @@ export async function generateElevacionTribunalDOCX(data: any) {
       linebreaks: true,
     });
 
-    // Determine gender (M/F)
+    const isJuridica = data.person?.tipoPersona === 'juridica';
+
+    // Determine gender (M/F) if physical person
     const gender = data.person?.gender?.toUpperCase() || 'M';
     const isFemale = gender === 'F';
 
     // Process and sanitize data for template
-    const rawTitular = data.person ? `${data.person.surname}, ${data.person.names}` : (data.hab?.titular || '---');
+    let rawTitular = '---';
+    let tratamiento = 'el Sr.';
+
+    if (data.person) {
+      if (isJuridica) {
+        const societario = data.person.tipoSocietario || 'S.A.';
+        const razonSocial = data.person.surname || '---';
+        rawTitular = `${razonSocial} ${societario}`.trim();
+        tratamiento = 'la firma';
+      } else {
+        rawTitular = `${data.person.surname}, ${data.person.names}`;
+        tratamiento = isFemale ? 'la Sra.' : 'el Sr.';
+      }
+    } else if (data.hab?.titular) {
+      rawTitular = data.hab.titular;
+      tratamiento = isFemale ? 'la Sra.' : 'el Sr.';
+    }
 
     const templateData = {
       expediente_nro: cleanValue(data.hab?.nroExpediente),
-      tratamiento: isFemale ? 'la Sra.' : 'el Sr.',
+      tratamiento: tratamiento,
       titular_nombre: cleanValue(rawTitular),
       titular_dni: cleanValue(data.person?.idNumber || data.hab?.idNumber),
       titular_domicilio: cleanValue(data.person?.address || data.hab?.address),
@@ -171,6 +228,13 @@ export async function generateElevacionTribunalDOCX(data: any) {
       fecha_hoy: new Date().toLocaleDateString('es-AR'),
       anho_actual: new Date().getFullYear(),
       tribunal_nro: data.tribunalNro || '1',
+      // IGJ & Estatuto (Jurídica)
+      titular_igj: cleanValue(data.person?.nroIgj),
+      titular_igj_fecha: cleanValue(data.person?.fechaInscripcionIgj),
+      titular_estatuto_fecha: cleanValue(data.person?.fechaEstatuto),
+      representante_nombre: cleanValue(data.person?.repNombre),
+      representante_dni: cleanValue(data.person?.repDni),
+      representante_cargo: cleanValue(data.person?.repCargo),
     };
 
     doc.render(templateData);
@@ -184,8 +248,13 @@ export async function generateElevacionTribunalDOCX(data: any) {
     let name = '';
     let surname = '';
     if (data.person) {
-      name = clean(data.person.names);
-      surname = clean(data.person.surname);
+      if (isJuridica) {
+        surname = clean(data.person.surname);
+        name = clean(data.person.tipoSocietario || 'SA_SRL');
+      } else {
+        name = clean(data.person.names);
+        surname = clean(data.person.surname);
+      }
     } else if (data.hab?.titular) {
       if (data.hab.titular.includes(',')) {
         const parts = data.hab.titular.split(',');

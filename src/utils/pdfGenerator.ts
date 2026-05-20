@@ -177,9 +177,15 @@ export function generateHabilitacionPDF(hab: any, person: any, title: any, drive
   doc.setFont('helvetica', 'bold');
   doc.text('TITULAR DE LA HABILITACIÓN', 25, 87);
   doc.setFont('helvetica', 'normal');
-  const titularName = person ? `${person.surname || ''}, ${person.names || ''}` : (hab.titular || '---');
+  const isJuridica = person?.tipoPersona === 'juridica';
+  const titularName = person 
+    ? (isJuridica 
+        ? `${person.surname} ${person.tipoSocietario || ''}`.trim()
+        : `${person.surname || ''}, ${person.names || ''}`)
+    : (hab.titular || '---');
   doc.text(`Nombre: ${titularName}`, 25, 95);
-  doc.text(`DNI / CUIT: ${person?.idNumber || hab.idNumber || '---'}`, 25, 102);
+  const idLabel = isJuridica ? 'CUIT' : 'DNI';
+  doc.text(`${idLabel}: ${person?.idNumber || hab.idNumber || '---'}`, 25, 102);
   doc.text(`Contacto: ${hab.email || '---'} / ${hab.phone || '---'}`, 25, 109);
 
   // Vehiculo Box
