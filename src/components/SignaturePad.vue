@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { Shield, Trash2, Upload, FileSignature, CheckCircle, FileKey2, KeyRound } from 'lucide-vue-next';
+import { PDFDocument } from 'pdf-lib';
 
 const emit = defineEmits(['saved']);
 
@@ -15,6 +16,114 @@ const certFileInput = ref<HTMLInputElement | null>(null);
 const certPassword = ref('');
 const certMeta = ref<any>(null);
 const isProcessingCert = ref(false);
+
+// PDF Signer Workspace State
+const selectedPdfFile = ref<File | null>(null);
+const pdfFileInput = ref<HTMLInputElement | null>(null);
+const pdfSignPage = ref<'last' | 'first' | 'all'>('last');
+const pdfSignPosition = ref<'bottom-right' | 'bottom-left' | 'bottom-center' | 'top-right'>('bottom-right');
+
+const handlePdfUpload = (e: Event) => {
+  const files = (e.target as HTMLInputElement).files;
+  if (files && files.length > 0) {
+    selectedPdfFile.value = files[0];
+  }
+};
+
+const signAndDownloadPdf = async () => {
+  if (!selectedPdfFile.value || !savedSignature.value) return;
+  
+  try {
+    const fileReader = new FileReader();
+    
+    fileReader.onload = async (event) => {
+      try {
+        const pdfBytes = event.target?.result as ArrayBuffer;
+        
+        // Load the PDF Document with pdf-lib
+        const pdfDoc = await PDFDocument.load(pdfBytes);
+        
+        // Load the signature image (base64 PNG)
+        const signatureBase64 = savedSignature.value!;
+        const signatureBytes = Uint8Array.from(atob(signatureBase64.split(',')[1]), c => c.charCodeAt(0));
+        
+        // Embed the PNG signature image
+        const signatureImage = await pdfDoc.embedPng(signatureBytes);
+        
+        // Get scale dimensions
+        const stampWidth = 145; // width of the stamp in the PDF
+        const stampHeight = (signatureImage.height / signatureImage.width) * stampWidth;
+        
+        const pages = pdfDoc.getPages();
+        const pagesToSign: number[] = [];
+        
+        if (pdfSignPage.value === 'first') {
+          pagesToSign.push(0);
+        } else if (pdfSignPage.value === 'last') {
+          pagesToSign.push(pages.length - 1);
+        } else {
+          // All pages
+          for (let i = 0; i < pages.length; i++) {
+            pagesToSign.push(i);
+          }
+        }
+        
+        for (const pageIdx of pagesToSign) {
+          const page = pages[pageIdx];
+          const { width, height } = page.getSize();
+          
+          let x = width - stampWidth - 30;
+          let y = 30;
+          
+          if (pdfSignPosition.value === 'bottom-left') {
+            x = 30;
+            y = 30;
+          } else if (pdfSignPosition.value === 'bottom-center') {
+            x = (width - stampWidth) / 2;
+            y = 30;
+          } else if (pdfSignPosition.value === 'top-right') {
+            x = width - stampWidth - 30;
+            y = height - stampHeight - 30;
+          }
+          
+          // Draw the signature image
+          page.drawImage(signatureImage, {
+            x,
+            y,
+            width: stampWidth,
+            height: stampHeight,
+          });
+        }
+        
+        // Save the signed PDF
+        const signedPdfBytes = await pdfDoc.save();
+        
+        // Create download blob
+        const blob = new Blob([signedPdfBytes], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const origName = selectedPdfFile.value!.name.replace(/\.pdf$/i, '');
+        a.download = `${origName}_firmado.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+        
+        // Clear state
+        selectedPdfFile.value = null;
+        if (pdfFileInput.value) pdfFileInput.value.value = '';
+        
+        alert('¡El PDF ha sido firmado y descargado correctamente con tu sello digital!');
+      } catch (err: any) {
+        console.error('Error signing PDF:', err);
+        alert('Ocurrió un error al procesar la firma del PDF.');
+      }
+    };
+    
+    fileReader.readAsArrayBuffer(selectedPdfFile.value);
+  } catch (error) {
+    console.error(error);
+  }
+};
 
 onMounted(() => {
   const stored = localStorage.getItem('agente_firma_digital');
@@ -478,6 +587,61 @@ const generateVisualSignatureStamp = (subject: string, organization: string, iss
             <h4>Sin Firma Registrada</h4>
             <p>Dibuja o sube una firma digital para comenzar a aplicarla automáticamente en las actas de inspección.</p>
           </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- PDF Signer Tool -->
+    <div class="signer-tool-card panel-section animate-fade" style="margin-top: 32px; background: rgba(16, 185, 129, 0.02); border: 1px dashed rgba(16, 185, 129, 0.3);">
+      <div class="tool-header-sub" style="display: flex; align-items: center; gap: 16px; margin-bottom: 8px;">
+        <div class="tool-icon-sub" style="background: rgba(16, 185, 129, 0.1); color: #10b981; padding: 10px; border-radius: 10px; display: flex;"><FileKey2 :size="20" /></div>
+        <div>
+          <h3 style="font-size: 16px; font-weight: 800; color: var(--text-main); margin: 0;">Herramienta: Firmar Documento PDF</h3>
+          <p class="section-desc" style="font-size: 12px; color: var(--text-muted); margin: 2px 0 0 0;">Sube cualquier archivo PDF (como tus elevaciones o resoluciones) y aplícale tu firma digital activa de forma visual y oficial.</p>
+        </div>
+      </div>
+      
+      <div class="signer-workspace" style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 16px;">
+        <div class="signer-upload-area" @click="pdfFileInput?.click()" style="flex: 1.2; min-width: 280px; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 28px; text-align: center; cursor: pointer; background: white; display: flex; flex-direction: column; align-items: center; gap: 8px; justify-content: center; transition: all 0.2s;">
+          <input type="file" ref="pdfFileInput" accept="application/pdf" @change="handlePdfUpload" style="display: none;" />
+          <Upload :size="32" style="color: #10b981; margin-bottom: 4px;" />
+          <h4 v-if="!selectedPdfFile" style="font-size: 14px; font-weight: 700; color: var(--text-main); margin: 0;">Seleccionar PDF a firmar</h4>
+          <h4 v-else style="font-size: 14px; color: #10b981; font-weight: bold; margin: 0;">✓ {{ selectedPdfFile.name }}</h4>
+          <p v-if="!selectedPdfFile" style="font-size: 12px; color: var(--text-muted); margin: 0;">Carga tu elevación, resolución o cualquier documento en PDF</p>
+          <p v-else style="font-size: 11px; color: var(--text-muted); margin: 0;">Tamaño: {{ (selectedPdfFile.size / 1024).toFixed(1) }} KB</p>
+        </div>
+        
+        <div class="signer-settings" style="flex: 1; min-width: 280px; display: flex; flex-direction: column; gap: 12px; background: white; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0;">
+          <h4 style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 4px 0;">Configuración del Estampado</h4>
+          
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;">Página a firmar</label>
+            <select v-model="pdfSignPage" style="padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 13px; font-weight: 600; outline: none; cursor: pointer; color: var(--text-main);">
+              <option value="last">Última Página</option>
+              <option value="first">Primera Página</option>
+              <option value="all">Todas las Páginas</option>
+            </select>
+          </div>
+          
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <label style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;">Posición de la firma</label>
+            <select v-model="pdfSignPosition" style="padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 13px; font-weight: 600; outline: none; cursor: pointer; color: var(--text-main);">
+              <option value="bottom-right">Abajo a la Derecha</option>
+              <option value="bottom-left">Abajo a la Izquierda</option>
+              <option value="bottom-center">Abajo al Centro</option>
+              <option value="top-right">Arriba a la Derecha</option>
+            </select>
+          </div>
+          
+          <button 
+            class="btn btn-primary" 
+            style="background: #10b981; border-color: #10b981; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 12px; height: 42px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);"
+            :disabled="!selectedPdfFile || !hasSignature"
+            @click="signAndDownloadPdf"
+          >
+            <FileSignature :size="16" />
+            <span>Firmar y Descargar PDF</span>
+          </button>
         </div>
       </div>
     </div>
