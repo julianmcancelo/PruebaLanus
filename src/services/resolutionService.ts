@@ -51,10 +51,13 @@ function replaceSignatureInDocx(zip: PizZip, isElevacion = false) {
     const binaryString = atob(base64Content);
     
     if (isElevacion) {
-      // In Elevacion Tribunal template, image1.wmf is the signature placeholder in the body,
-      // while image2.png is the header logo.
-      if (zip.files['word/media/image1.wmf']) {
-        zip.file('word/media/image1.wmf', binaryString, { binary: true });
+      // In Elevacion Tribunal template:
+      // - image2.png is the header logo.
+      // - image1.wmf is the middle-bottom division stamp.
+      // We should NOT replace either of them to keep the document fully intact.
+      // If the user adds a signature placeholder image in their Word template, it will be saved as image3.png.
+      if (zip.files['word/media/image3.png']) {
+        zip.file('word/media/image3.png', binaryString, { binary: true });
       }
     } else {
       // In Resolution templates, image2.png is the signature placeholder.
