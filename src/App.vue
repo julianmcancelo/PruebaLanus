@@ -24,7 +24,7 @@ import InspectionsTable from './components/InspectionsTable.vue';
 import InspectionScanner from './components/InspectionScanner.vue';
 import BulkScanner from './components/BulkScanner.vue';
 import SignaturePad from './components/SignaturePad.vue';
-import { generateInspectionPDF, generateHabilitacionPDF } from './utils/pdfGenerator';
+import { generateInspectionPDF, generateHabilitacionPDF, generateResolutionPDF, generateElevacionTribunalPDF } from './utils/pdfGenerator';
 import { generateResolutionDOCX, generateElevacionTribunalDOCX } from './services/resolutionService';
 import { 
   db, savePerson, getAllPeople, deletePersonById, updatePerson,
@@ -703,6 +703,31 @@ const handleGenerateElevacion = async (hab: any) => {
     showToast('Elevación a tribunal generada', 'success');
   } catch (error: any) {
     showToast(`Error al generar elevación: ${error.message}`, 'error');
+  }
+};
+
+const handleGenerateResolutionPDF = (hab: any) => {
+  const person = getLinkedPersonByHab(hab);
+  const title = getLinkedTitleByHab(hab.dominio);
+  const remiseria = schools.value.find(s => hab.idColegios?.includes(s.id));
+  const type = hab.tipoHabilitacion?.toLowerCase() === 'remis' ? 'remis' : 'escolar';
+  try {
+    generateResolutionPDF(type as any, { hab, person, title, remiseria });
+    showToast('Resolución en PDF descargada correctamente', 'success');
+  } catch (error: any) {
+    showToast(`Error al generar resolución en PDF: ${error.message}`, 'error');
+  }
+};
+
+const handleGenerateElevacionPDF = (hab: any) => {
+  const person = getLinkedPersonByHab(hab);
+  const title = getLinkedTitleByHab(hab.dominio);
+  const remiseria = schools.value.find(s => hab.idColegios?.includes(s.id));
+  try {
+    generateElevacionTribunalPDF({ hab, person, title, remiseria });
+    showToast('Elevación a tribunal en PDF descargada correctamente', 'success');
+  } catch (error: any) {
+    showToast(`Error al generar elevación en PDF: ${error.message}`, 'error');
   }
 };
 
@@ -1467,6 +1492,8 @@ const linkSchoolToHab = async (schoolId: any, habId: any) => {
       @print-inspection-excel="handleDownloadInspectionExcel"
       @generate-resolution="handleGenerateResolution"
       @generate-elevacion="handleGenerateElevacion"
+      @generate-resolution-pdf="handleGenerateResolutionPDF"
+      @generate-elevacion-pdf="handleGenerateElevacionPDF"
     />
 
     <SchoolDetails

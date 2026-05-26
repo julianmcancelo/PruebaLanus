@@ -52,21 +52,36 @@ const signAndDownloadPdf = async () => {
           
           // Replace any found signature placeholder inside DOCX
           let replaced = false;
-          if (zip.files['word/media/image2.png']) {
+          
+          if (zip.files['word/media/image1.wmf']) {
+            // 1. In Elevacion templates, image1.wmf is the body signature and image2.png is the header logo.
+            zip.file('word/media/image1.wmf', binaryString, { binary: true });
+            replaced = true;
+          } else if (zip.files['word/media/image2.png'] && zip.files['word/media/image1.jpeg']) {
+            // 2. In Resolution templates, image2.png is the body signature and image1.jpeg is the header logo.
             zip.file('word/media/image2.png', binaryString, { binary: true });
             replaced = true;
-          }
-          if (zip.files['word/media/image1.png']) {
-            zip.file('word/media/image1.png', binaryString, { binary: true });
+          } else if (zip.files['word/media/image2.png'] && zip.files['word/media/image1.png']) {
+            // 3. If both exist and it's not a known template, target image2.png (usually the signature placeholder)
+            zip.file('word/media/image2.png', binaryString, { binary: true });
             replaced = true;
+          } else {
+            // Fallbacks
+            if (zip.files['word/media/image2.png']) {
+              zip.file('word/media/image2.png', binaryString, { binary: true });
+              replaced = true;
+            } else if (zip.files['word/media/image1.png']) {
+              zip.file('word/media/image1.png', binaryString, { binary: true });
+              replaced = true;
+            }
           }
           
           if (!replaced) {
-            // Find any media keys
+            // Find any media keys but avoid replacing common header files if possible
             const mediaKeys = Object.keys(zip.files).filter(k => k.startsWith('word/media/'));
             if (mediaKeys.length > 0) {
-              // Replace the first media image as a fallback
-              zip.file(mediaKeys[0], binaryString, { binary: true });
+              // Target the last media key which is usually the body signature (headers are usually loaded first)
+              zip.file(mediaKeys[mediaKeys.length - 1], binaryString, { binary: true });
             } else {
               alert('Advertencia: No se encontró ningún marcador de imagen de firma en el documento Word, pero se generará igualmente.');
             }

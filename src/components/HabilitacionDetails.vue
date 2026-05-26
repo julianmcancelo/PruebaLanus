@@ -12,7 +12,7 @@ const props = defineProps<{
   schools?: any[]
 }>();
 
-const emit = defineEmits(['close', 'update', 'print', 'print-inspection', 'print-inspection-excel', 'generate-resolution', 'generate-elevacion']);
+const emit = defineEmits(['close', 'update', 'print', 'print-inspection', 'print-inspection-excel', 'generate-resolution', 'generate-elevacion', 'generate-resolution-pdf', 'generate-elevacion-pdf']);
 
 const isEditing = ref(false);
 const editedHab = ref<any>(null);
@@ -453,12 +453,18 @@ const linkedSchools = computed(() => {
             <FileDown :size="16" /> Acta Excel
           </button>
         </div>
-        <div class="footer-section">
+        <div class="footer-section" style="gap: 8px;">
           <button class="action-btn accent" @click="$emit('generate-resolution', hab)">
-            <FileSignature :size="16" /> Resolución
+            <FileSignature :size="14" /> Resol. DOCX
+          </button>
+          <button class="action-btn" style="background: var(--primary); color: white; border-color: var(--primary);" @click="$emit('generate-resolution-pdf', hab)">
+            <FileText :size="14" /> Resol. PDF
           </button>
           <button class="action-btn danger" @click="$emit('generate-elevacion', hab)">
-            <Gavel :size="16" /> Elevación
+            <Gavel :size="14" /> Elevac. DOCX
+          </button>
+          <button class="action-btn danger" style="background: #e11d48; border-color: #e11d48;" @click="$emit('generate-elevacion-pdf', hab)">
+            <FileText :size="14" /> Elevac. PDF
           </button>
         </div>
         <div class="footer-section">
