@@ -17,6 +17,17 @@ const emit = defineEmits(['close', 'update', 'print', 'print-inspection', 'print
 const isEditing = ref(false);
 const editedHab = ref<any>(null);
 
+const estadoClass = (estado: string) => {
+  if (!estado) return 'iniciado';
+  switch (estado) {
+    case 'Resolución Armada': return 'resolucion-armada';
+    case 'Tribunal de Faltas': return 'tribunal-faltas';
+    case 'Resolución Formada': return 'resolucion-formada';
+    case 'Trámite Finalizado': return 'tramite-finalizado';
+    default: return 'iniciado';
+  }
+};
+
 const startEditing = () => {
   editedHab.value = { 
     ...props.hab,
@@ -159,6 +170,20 @@ const linkedSchools = computed(() => {
             <AlertCircle v-else :size="14" />
             <span>GestDoc: <strong>{{ (isEditing ? (editedHab && editedHab.cargadoGestdoc) : hab.cargadoGestdoc) ? 'Cargado' : 'Pendiente' }}</strong></span>
           </div>
+          <div class="info-chip estado-chip" :class="estadoClass(isEditing ? (editedHab && editedHab.estado) : hab.estado)">
+            <Gavel :size="14" />
+            <span v-if="!isEditing">Estado: <strong>{{ hab.estado || 'Iniciado' }}</strong></span>
+            <span v-else style="display: inline-flex; align-items: center; gap: 4px;">
+              Estado: 
+              <select v-model="editedHab.estado" class="estado-select-header">
+                <option value="Iniciado">Iniciado</option>
+                <option value="Resolución Armada">Resolución Armada</option>
+                <option value="Tribunal de Faltas">Tribunal de Faltas</option>
+                <option value="Resolución Formada">Resolución Formada</option>
+                <option value="Trámite Finalizado">Trámite Finalizado</option>
+              </select>
+            </span>
+          </div>
           <div v-if="linkedSchools.length > 0" class="info-chip schools">
             <School :size="14" />
             <span>{{ linkedSchools.length }} colegio{{ linkedSchools.length > 1 ? 's' : '' }}</span>
@@ -168,6 +193,44 @@ const linkedSchools = computed(() => {
 
       <!-- Content -->
       <div class="modal-body">
+        <!-- Section: Estado del Trámite -->
+        <div class="data-section estado-seccion">
+          <div class="section-header">
+            <div class="section-icon orange">
+              <ClipboardCheck :size="18" />
+            </div>
+            <h3>Estado del Trámite</h3>
+          </div>
+          
+          <div class="status-timeline">
+            <div 
+              v-for="step in ['Iniciado', 'Resolución Armada', 'Tribunal de Faltas', 'Resolución Formada', 'Trámite Finalizado']"
+              :key="step"
+              class="timeline-step"
+              :class="{ 
+                'active': (isEditing ? editedHab.estado : hab.estado) === step || (!(isEditing ? editedHab.estado : hab.estado) && step === 'Iniciado'),
+                'clickable': isEditing
+              }"
+              @click="isEditing && (editedHab.estado = step)"
+            >
+              <div class="step-indicator">
+                <CheckCircle2 v-if="(isEditing ? editedHab.estado : hab.estado) === step || (!(isEditing ? editedHab.estado : hab.estado) && step === 'Iniciado')" :size="16" />
+                <div v-else class="step-dot"></div>
+              </div>
+              <div class="step-content">
+                <div class="step-title">{{ step }}</div>
+                <div class="step-desc">
+                  <span v-if="step === 'Iniciado'">Expediente ingresado</span>
+                  <span v-else-if="step === 'Resolución Armada'">Se armó borrador</span>
+                  <span v-else-if="step === 'Tribunal de Faltas'">Pasó por Tribunal</span>
+                  <span v-else-if="step === 'Resolución Formada'">Se firmó la resolución</span>
+                  <span v-else-if="step === 'Trámite Finalizado'">Trámite finalizado</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Section: Titular -->
         <div class="data-section">
           <div class="section-header">
@@ -1125,6 +1188,164 @@ select.input-field {
   
   .footer-section {
     justify-content: center;
+  }
+}
+
+.info-chip.estado-chip.iniciado {
+  background: rgba(148, 163, 184, 0.25);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+.info-chip.estado-chip.resolucion-armada {
+  background: rgba(249, 115, 22, 0.35);
+  border: 1px solid rgba(249, 115, 22, 0.5);
+}
+.info-chip.estado-chip.tribunal-faltas {
+  background: rgba(99, 102, 241, 0.35);
+  border: 1px solid rgba(99, 102, 241, 0.5);
+}
+.info-chip.estado-chip.resolucion-formada {
+  background: rgba(20, 184, 166, 0.35);
+  border: 1px solid rgba(20, 184, 166, 0.5);
+}
+.info-chip.estado-chip.tramite-finalizado {
+  background: rgba(16, 185, 129, 0.35);
+  border: 1px solid rgba(16, 185, 129, 0.5);
+}
+
+.estado-select-header {
+  font-size: 13px;
+  font-weight: 700;
+  width: 140px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: white;
+  outline: none;
+  cursor: pointer;
+}
+.estado-select-header option {
+  color: #0f172a;
+}
+
+.status-timeline {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 8px;
+  background: white;
+  padding: 18px 12px;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+}
+
+@media (max-width: 640px) {
+  .status-timeline {
+    flex-direction: column;
+    gap: 16px;
+  }
+}
+
+.timeline-step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  opacity: 0.45;
+  transition: all 0.3s ease;
+}
+
+@media (max-width: 640px) {
+  .timeline-step {
+    flex-direction: row;
+    text-align: left;
+    align-items: flex-start;
+    width: 100%;
+  }
+}
+
+.timeline-step.active {
+  opacity: 1;
+}
+
+.timeline-step.clickable {
+  cursor: pointer;
+}
+
+.timeline-step.clickable:hover {
+  opacity: 0.8;
+  transform: translateY(-1px);
+}
+
+.step-indicator {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  border: 2px solid #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  margin-bottom: 6px;
+  transition: all 0.3s ease;
+  z-index: 2;
+}
+
+@media (max-width: 640px) {
+  .step-indicator {
+    margin-bottom: 0;
+    margin-right: 12px;
+    flex-shrink: 0;
+  }
+}
+
+.timeline-step.active .step-indicator {
+  background: #4f46e5;
+  border-color: #4f46e5;
+  color: white;
+  box-shadow: 0 0 10px rgba(79, 70, 229, 0.3);
+}
+
+.step-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #cbd5e1;
+}
+
+.step-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+@media (max-width: 640px) {
+  .step-content {
+    align-items: flex-start;
+  }
+}
+
+.step-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #1e293b;
+  margin-bottom: 2px;
+}
+
+.step-desc {
+  font-size: 9px;
+  color: #94a3b8;
+  font-weight: 500;
+  max-width: 110px;
+}
+
+@media (max-width: 640px) {
+  .step-desc {
+    max-width: 100%;
   }
 }
 </style>

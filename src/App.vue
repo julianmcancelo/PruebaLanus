@@ -501,6 +501,16 @@ const handleToggleGestdoc = async (hab: any) => {
   }
 };
 
+const handleUpdateEstado = async ({ hab, estado }: { hab: any, estado: string }) => {
+  if (hab && hab.id) {
+    const updated = { ...hab, estado };
+    const dataToSave = JSON.parse(JSON.stringify(updated));
+    await updateHabilitacion(hab.id, dataToSave);
+    await loadData();
+    showToast(`Estado de habilitación ${hab.nroExpediente} actualizado a "${estado}"`, 'success');
+  }
+};
+
 const handleExportDB = async () => {
   try {
     const data = await exportLegacyDatabase();
@@ -1225,6 +1235,7 @@ const linkSchoolToHab = async (schoolId: any, habId: any) => {
             @generate-resolution="handleGenerateResolution"
             @generate-elevacion="handleGenerateElevacion"
             @toggle-gestdoc="handleToggleGestdoc"
+            @update-estado="handleUpdateEstado"
           />
         </section>
 
