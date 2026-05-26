@@ -38,8 +38,8 @@ function sanitizeTemplateXML(zip: PizZip) {
   }
 }
 
-// Replaces the placeholder signature image (image2.png) inside the DOCX ZIP archive
-function replaceSignatureInDocx(zip: PizZip) {
+// Replaces the placeholder signature image inside the DOCX ZIP archive
+function replaceSignatureInDocx(zip: PizZip, isElevacion = false) {
   const storedFirma = localStorage.getItem('agente_firma_digital');
   if (!storedFirma) return;
   
@@ -50,9 +50,17 @@ function replaceSignatureInDocx(zip: PizZip) {
     // Decode base64 to binary string (PizZip natively accepts binary strings)
     const binaryString = atob(base64Content);
     
-    // Replace the signature image placeholder (word/media/image2.png)
-    if (zip.files['word/media/image2.png']) {
-      zip.file('word/media/image2.png', binaryString, { binary: true });
+    if (isElevacion) {
+      // In Elevacion Tribunal template, image1.wmf is the signature placeholder in the body,
+      // while image2.png is the header logo.
+      if (zip.files['word/media/image1.wmf']) {
+        zip.file('word/media/image1.wmf', binaryString, { binary: true });
+      }
+    } else {
+      // In Resolution templates, image2.png is the signature placeholder.
+      if (zip.files['word/media/image2.png']) {
+        zip.file('word/media/image2.png', binaryString, { binary: true });
+      }
     }
   } catch (error) {
     console.error('Error al estampar firma en el documento Word:', error);
@@ -209,7 +217,7 @@ export async function generateElevacionTribunalDOCX(data: any) {
     sanitizeTemplateXML(zip);
     
     // Stamp the active digital signature into the document media folder
-    replaceSignatureInDocx(zip);
+    replaceSignatureInDocx(zip, true);
 
     const doc = new Docxtemplater(zip, {
       paragraphLoop: true,
