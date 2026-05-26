@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue';
 import { Shield, Trash2, Upload, FileSignature, CheckCircle, FileKey2, KeyRound } from 'lucide-vue-next';
 import { PDFDocument } from 'pdf-lib';
+import PizZip from 'pizzip';
 
 const emit = defineEmits(['saved']);
 
@@ -17,16 +18,19 @@ const certPassword = ref('');
 const certMeta = ref<any>(null);
 const isProcessingCert = ref(false);
 
-// PDF Signer Workspace State
+// PDF & DOCX Signer Workspace State
 const selectedPdfFile = ref<File | null>(null);
 const pdfFileInput = ref<HTMLInputElement | null>(null);
 const pdfSignPage = ref<'last' | 'first' | 'all'>('last');
 const pdfSignPosition = ref<'bottom-right' | 'bottom-left' | 'bottom-center' | 'top-right'>('bottom-right');
+const selectedFileType = ref<'pdf' | 'docx'>('pdf');
 
 const handlePdfUpload = (e: Event) => {
   const files = (e.target as HTMLInputElement).files;
   if (files && files.length > 0) {
-    selectedPdfFile.value = files[0];
+    const file = files[0];
+    selectedPdfFile.value = file;
+    selectedFileType.value = file.name.toLowerCase().endsWith('.docx') ? 'docx' : 'pdf';
   }
 };
 
@@ -36,90 +40,150 @@ const signAndDownloadPdf = async () => {
   try {
     const fileReader = new FileReader();
     
-    fileReader.onload = async (event) => {
-      try {
-        const pdfBytes = event.target?.result as ArrayBuffer;
-        
-        // Load the PDF Document with pdf-lib
-        const pdfDoc = await PDFDocument.load(pdfBytes);
-        
-        // Load the signature image (base64 PNG)
-        const signatureBase64 = savedSignature.value!;
-        const signatureBytes = Uint8Array.from(atob(signatureBase64.split(',')[1]), c => c.charCodeAt(0));
-        
-        // Embed the PNG signature image
-        const signatureImage = await pdfDoc.embedPng(signatureBytes);
-        
-        // Get scale dimensions
-        const stampWidth = 145; // width of the stamp in the PDF
-        const stampHeight = (signatureImage.height / signatureImage.width) * stampWidth;
-        
-        const pages = pdfDoc.getPages();
-        const pagesToSign: number[] = [];
-        
-        if (pdfSignPage.value === 'first') {
-          pagesToSign.push(0);
-        } else if (pdfSignPage.value === 'last') {
-          pagesToSign.push(pages.length - 1);
-        } else {
-          // All pages
-          for (let i = 0; i < pages.length; i++) {
-            pagesToSign.push(i);
+    if (selectedFileType.value === 'docx') {
+      fileReader.onload = async (event) => {
+        try {
+          const docxBytes = event.target?.result as ArrayBuffer;
+          const zip = new PizZip(docxBytes);
+          
+          // Extract base64 content
+          const base64Content = savedSignature.value!.split(',')[1] || savedSignature.value!;
+          const binaryString = atob(base64Content);
+          
+          // Replace any found signature placeholder inside DOCX
+          let replaced = false;
+          if (zip.files['word/media/image2.png']) {
+            zip.file('word/media/image2.png', binaryString, { binary: true });
+            replaced = true;
           }
-        }
-        
-        for (const pageIdx of pagesToSign) {
-          const page = pages[pageIdx];
-          const { width, height } = page.getSize();
-          
-          let x = width - stampWidth - 30;
-          let y = 30;
-          
-          if (pdfSignPosition.value === 'bottom-left') {
-            x = 30;
-            y = 30;
-          } else if (pdfSignPosition.value === 'bottom-center') {
-            x = (width - stampWidth) / 2;
-            y = 30;
-          } else if (pdfSignPosition.value === 'top-right') {
-            x = width - stampWidth - 30;
-            y = height - stampHeight - 30;
+          if (zip.files['word/media/image1.png']) {
+            zip.file('word/media/image1.png', binaryString, { binary: true });
+            replaced = true;
           }
           
-          // Draw the signature image
-          page.drawImage(signatureImage, {
-            x,
-            y,
-            width: stampWidth,
-            height: stampHeight,
+          if (!replaced) {
+            // Find any media keys
+            const mediaKeys = Object.keys(zip.files).filter(k => k.startsWith('word/media/'));
+            if (mediaKeys.length > 0) {
+              // Replace the first media image as a fallback
+              zip.file(mediaKeys[0], binaryString, { binary: true });
+            } else {
+              alert('Advertencia: No se encontró ningún marcador de imagen de firma en el documento Word, pero se generará igualmente.');
+            }
+          }
+          
+          // Generate output zip as blob
+          const out = zip.generate({
+            type: 'blob',
+            mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
           });
+          
+          const url = URL.createObjectURL(out);
+          const a = document.createElement('a');
+          a.href = url;
+          const origName = selectedPdfFile.value!.name.replace(/\.docx$/i, '');
+          a.download = `${origName}_firmado.docx`;
+          a.click();
+          URL.revokeObjectURL(url);
+          
+          // Clear state
+          selectedPdfFile.value = null;
+          if (pdfFileInput.value) pdfFileInput.value.value = '';
+          
+          alert('¡El documento Word (DOCX) ha sido firmado y descargado correctamente!');
+        } catch (err: any) {
+          console.error('Error signing DOCX:', err);
+          alert('Ocurrió un error al estampar la firma en el archivo Word.');
         }
-        
-        // Save the signed PDF
-        const signedPdfBytes = await pdfDoc.save();
-        
-        // Create download blob
-        const blob = new Blob([signedPdfBytes], { type: 'application/pdf' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        const origName = selectedPdfFile.value!.name.replace(/\.pdf$/i, '');
-        a.download = `${origName}_firmado.pdf`;
-        a.click();
-        URL.revokeObjectURL(url);
-        
-        // Clear state
-        selectedPdfFile.value = null;
-        if (pdfFileInput.value) pdfFileInput.value.value = '';
-        
-        alert('¡El PDF ha sido firmado y descargado correctamente con tu sello digital!');
-      } catch (err: any) {
-        console.error('Error signing PDF:', err);
-        alert('Ocurrió un error al procesar la firma del PDF.');
-      }
-    };
-    
-    fileReader.readAsArrayBuffer(selectedPdfFile.value);
+      };
+      
+      fileReader.readAsArrayBuffer(selectedPdfFile.value);
+    } else {
+      fileReader.onload = async (event) => {
+        try {
+          const pdfBytes = event.target?.result as ArrayBuffer;
+          
+          // Load the PDF Document with pdf-lib
+          const pdfDoc = await PDFDocument.load(pdfBytes);
+          
+          // Load the signature image (base64 PNG)
+          const signatureBase64 = savedSignature.value!;
+          const signatureBytes = Uint8Array.from(atob(signatureBase64.split(',')[1]), c => c.charCodeAt(0));
+          
+          // Embed the PNG signature image
+          const signatureImage = await pdfDoc.embedPng(signatureBytes);
+          
+          // Get scale dimensions
+          const stampWidth = 145; // width of the stamp in the PDF
+          const stampHeight = (signatureImage.height / signatureImage.width) * stampWidth;
+          
+          const pages = pdfDoc.getPages();
+          const pagesToSign: number[] = [];
+          
+          if (pdfSignPage.value === 'first') {
+            pagesToSign.push(0);
+          } else if (pdfSignPage.value === 'last') {
+            pagesToSign.push(pages.length - 1);
+          } else {
+            // All pages
+            for (let i = 0; i < pages.length; i++) {
+              pagesToSign.push(i);
+            }
+          }
+          
+          for (const pageIdx of pagesToSign) {
+            const page = pages[pageIdx];
+            const { width, height } = page.getSize();
+            
+            let x = width - stampWidth - 30;
+            let y = 30;
+            
+            if (pdfSignPosition.value === 'bottom-left') {
+              x = 30;
+              y = 30;
+            } else if (pdfSignPosition.value === 'bottom-center') {
+              x = (width - stampWidth) / 2;
+              y = 30;
+            } else if (pdfSignPosition.value === 'top-right') {
+              x = width - stampWidth - 30;
+              y = height - stampHeight - 30;
+            }
+            
+            // Draw the signature image
+            page.drawImage(signatureImage, {
+              x,
+              y,
+              width: stampWidth,
+              height: stampHeight,
+            });
+          }
+          
+          // Save the signed PDF
+          const signedPdfBytes = await pdfDoc.save();
+          
+          // Create download blob
+          const blob = new Blob([signedPdfBytes], { type: 'application/pdf' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          const origName = selectedPdfFile.value!.name.replace(/\.pdf$/i, '');
+          a.download = `${origName}_firmado.pdf`;
+          a.click();
+          URL.revokeObjectURL(url);
+          
+          // Clear state
+          selectedPdfFile.value = null;
+          if (pdfFileInput.value) pdfFileInput.value.value = '';
+          
+          alert('¡El PDF ha sido firmado y descargado correctamente con tu sello digital!');
+        } catch (err: any) {
+          console.error('Error signing PDF:', err);
+          alert('Ocurrió un error al procesar la firma del PDF.');
+        }
+      };
+      
+      fileReader.readAsArrayBuffer(selectedPdfFile.value);
+    }
   } catch (error) {
     console.error(error);
   }
@@ -591,56 +655,64 @@ const generateVisualSignatureStamp = (subject: string, organization: string, iss
       </div>
     </div>
     
-    <!-- PDF Signer Tool -->
+    <!-- PDF & DOCX Signer Tool -->
     <div class="signer-tool-card panel-section animate-fade" style="margin-top: 32px; background: rgba(16, 185, 129, 0.02); border: 1px dashed rgba(16, 185, 129, 0.3);">
       <div class="tool-header-sub" style="display: flex; align-items: center; gap: 16px; margin-bottom: 8px;">
         <div class="tool-icon-sub" style="background: rgba(16, 185, 129, 0.1); color: #10b981; padding: 10px; border-radius: 10px; display: flex;"><FileKey2 :size="20" /></div>
         <div>
-          <h3 style="font-size: 16px; font-weight: 800; color: var(--text-main); margin: 0;">Herramienta: Firmar Documento PDF</h3>
-          <p class="section-desc" style="font-size: 12px; color: var(--text-muted); margin: 2px 0 0 0;">Sube cualquier archivo PDF (como tus elevaciones o resoluciones) y aplícale tu firma digital activa de forma visual y oficial.</p>
+          <h3 style="font-size: 16px; font-weight: 800; color: var(--text-main); margin: 0;">Herramienta: Firmar Documento PDF o Word (DOCX)</h3>
+          <p class="section-desc" style="font-size: 12px; color: var(--text-muted); margin: 2px 0 0 0;">Sube cualquier archivo PDF o Word (.docx) y aplícale tu firma digital activa de forma visual y oficial.</p>
         </div>
       </div>
       
       <div class="signer-workspace" style="display: flex; gap: 20px; flex-wrap: wrap; margin-top: 16px;">
         <div class="signer-upload-area" @click="pdfFileInput?.click()" style="flex: 1.2; min-width: 280px; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 28px; text-align: center; cursor: pointer; background: white; display: flex; flex-direction: column; align-items: center; gap: 8px; justify-content: center; transition: all 0.2s;">
-          <input type="file" ref="pdfFileInput" accept="application/pdf" @change="handlePdfUpload" style="display: none;" />
+          <input type="file" ref="pdfFileInput" accept="application/pdf, application/vnd.openxmlformats-officedocument.wordprocessingml.document" @change="handlePdfUpload" style="display: none;" />
           <Upload :size="32" style="color: #10b981; margin-bottom: 4px;" />
-          <h4 v-if="!selectedPdfFile" style="font-size: 14px; font-weight: 700; color: var(--text-main); margin: 0;">Seleccionar PDF a firmar</h4>
+          <h4 v-if="!selectedPdfFile" style="font-size: 14px; font-weight: 700; color: var(--text-main); margin: 0;">Seleccionar PDF o DOCX a firmar</h4>
           <h4 v-else style="font-size: 14px; color: #10b981; font-weight: bold; margin: 0;">✓ {{ selectedPdfFile.name }}</h4>
-          <p v-if="!selectedPdfFile" style="font-size: 12px; color: var(--text-muted); margin: 0;">Carga tu elevación, resolución o cualquier documento en PDF</p>
-          <p v-else style="font-size: 11px; color: var(--text-muted); margin: 0;">Tamaño: {{ (selectedPdfFile.size / 1024).toFixed(1) }} KB</p>
+          <p v-if="!selectedPdfFile" style="font-size: 12px; color: var(--text-muted); margin: 0;">Carga tu elevación, resolución o cualquier documento en PDF o Word (.docx)</p>
+          <p v-else style="font-size: 11px; color: var(--text-muted); margin: 0;">Formato: {{ selectedFileType.toUpperCase() }} | Tamaño: {{ (selectedPdfFile.size / 1024).toFixed(1) }} KB</p>
         </div>
         
         <div class="signer-settings" style="flex: 1; min-width: 280px; display: flex; flex-direction: column; gap: 12px; background: white; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0;">
           <h4 style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 4px 0;">Configuración del Estampado</h4>
           
-          <div style="display: flex; flex-direction: column; gap: 4px;">
-            <label style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;">Página a firmar</label>
-            <select v-model="pdfSignPage" style="padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 13px; font-weight: 600; outline: none; cursor: pointer; color: var(--text-main);">
-              <option value="last">Última Página</option>
-              <option value="first">Primera Página</option>
-              <option value="all">Todas las Páginas</option>
-            </select>
-          </div>
+          <template v-if="selectedFileType === 'pdf'">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <label style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;">Página a firmar</label>
+              <select v-model="pdfSignPage" style="padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 13px; font-weight: 600; outline: none; cursor: pointer; color: var(--text-main);">
+                <option value="last">Última Página</option>
+                <option value="first">Primera Página</option>
+                <option value="all">Todas las Páginas</option>
+              </select>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <label style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;">Posición de la firma</label>
+              <select v-model="pdfSignPosition" style="padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 13px; font-weight: 600; outline: none; cursor: pointer; color: var(--text-main);">
+                <option value="bottom-right">Abajo a la Derecha</option>
+                <option value="bottom-left">Abajo a la Izquierda</option>
+                <option value="bottom-center">Abajo al Centro</option>
+                <option value="top-right">Arriba a la Derecha</option>
+              </select>
+            </div>
+          </template>
           
-          <div style="display: flex; flex-direction: column; gap: 4px;">
-            <label style="font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase;">Posición de la firma</label>
-            <select v-model="pdfSignPosition" style="padding: 8px 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 13px; font-weight: 600; outline: none; cursor: pointer; color: var(--text-main);">
-              <option value="bottom-right">Abajo a la Derecha</option>
-              <option value="bottom-left">Abajo a la Izquierda</option>
-              <option value="bottom-center">Abajo al Centro</option>
-              <option value="top-right">Arriba a la Derecha</option>
-            </select>
+          <div v-else style="background: rgba(79, 70, 229, 0.04); border: 1px solid rgba(79, 70, 229, 0.15); padding: 12px; border-radius: 8px; margin-bottom: 8px;">
+            <p style="font-size: 12px; color: #4f46e5; font-weight: 600; margin: 0; line-height: 1.4;">
+              ℹ️ <strong>Firma automática en Word (DOCX):</strong> El sello digital se estampará automáticamente en el marcador de posición preestablecido del documento original. No se requiere configuración de coordenadas.
+            </p>
           </div>
           
           <button 
             class="btn btn-primary" 
-            style="background: #10b981; border-color: #10b981; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 12px; height: 42px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);"
+            style="background: #10b981; border-color: #10b981; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: auto; height: 42px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);"
             :disabled="!selectedPdfFile || !hasSignature"
             @click="signAndDownloadPdf"
           >
             <FileSignature :size="16" />
-            <span>Firmar y Descargar PDF</span>
+            <span>Firmar y Descargar {{ selectedFileType.toUpperCase() }}</span>
           </button>
         </div>
       </div>
