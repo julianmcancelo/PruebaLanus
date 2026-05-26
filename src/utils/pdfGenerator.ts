@@ -133,7 +133,10 @@ export function generateInspectionPDF(inspection: any, title: any, hab: any) {
   const storedFirma = localStorage.getItem('agente_firma_digital');
   if (storedFirma) {
     try {
-      doc.addImage(storedFirma, 'PNG', pageWidth - 80, finalY + 3, 50, 20);
+      const isDigital = localStorage.getItem('agente_firma_cert_meta');
+      const w = 54;
+      const h = isDigital ? 18 : 22; // Perfect aspect ratio (3:1 for digital cert, ~2.4:1 for drawn)
+      doc.addImage(storedFirma, 'PNG', pageWidth - 80, finalY + 3, w, h);
     } catch (e) {
       console.error('Error drawing agent signature in Inspection PDF:', e);
     }
@@ -230,7 +233,10 @@ export function generateHabilitacionPDF(hab: any, person: any, title: any, drive
   const storedFirma = localStorage.getItem('agente_firma_digital');
   if (storedFirma) {
     try {
-      doc.addImage(storedFirma, 'PNG', 20, finalY - 5, 45, 20);
+      const isDigital = localStorage.getItem('agente_firma_cert_meta');
+      const w = 54;
+      const h = isDigital ? 18 : 22; // Perfect aspect ratio (3:1 for digital cert, ~2.4:1 for drawn)
+      doc.addImage(storedFirma, 'PNG', 20, finalY - 5, w, h);
     } catch (e) {
       console.error('Error drawing agent signature in Habilitacion PDF:', e);
     }
