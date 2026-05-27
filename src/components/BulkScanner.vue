@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import ExcelJS from 'exceljs';
 import { Upload, FileText, CheckCircle2, Loader2, AlertCircle, Trash2, Database, Car, Users, Filter } from 'lucide-vue-next';
 import { extractDniData } from '../services/dniService';
 import { extractTitleData } from '../services/titleService';
@@ -74,8 +75,7 @@ const processFiles = async () => {
 
     try {
       if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-        const ExcelJS = await import('exceljs');
-        const workbook = new ExcelJS.default.Workbook();
+        const workbook = new ExcelJS.Workbook();
         await workbook.xlsx.load(await file.arrayBuffer());
         const worksheet = workbook.getWorksheet(1) || workbook.worksheets[0];
         if (!worksheet) throw new Error('No se encontró la hoja en el Excel');

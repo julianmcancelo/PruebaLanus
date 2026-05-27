@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue';
 import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { Users, Database, Settings, LogOut, Search, Plus, FilePlus, Scissors, Eye, Car, School, ClipboardCheck, FileText, Download, AlertTriangle, Building2, ClipboardList, Info, Trash2, Zap, Loader2, Upload, FileSignature } from 'lucide-vue-next';
 import DniScanner from './components/DniScanner.vue';
 import PeopleTable from './components/PeopleTable.vue';
@@ -643,8 +644,7 @@ const handleDownloadInspectionExcel = async (hab: any) => {
       throw new Error('El archivo descargado no es un documento de Excel válido. Posible error de enrutamiento en el servidor.');
     }
 
-    const ExcelJS = await import('exceljs');
-    const workbook = new (ExcelJS.default || ExcelJS).Workbook();
+    const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(arrayBuffer);
     const worksheet = workbook.worksheets[0];
 
