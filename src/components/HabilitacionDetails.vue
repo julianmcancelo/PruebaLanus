@@ -119,7 +119,7 @@ const linkedSchools = computed(() => {
                 <h2>{{ hab.nroExpediente || 'Sin Expediente' }}</h2>
                 <div class="exp-type-row">
                   <span class="exp-type">{{ hab.tipoTramite || 'Habilitación' }}</span>
-                  <span v-if="hab.tipoHabilitacion" class="type-badge-inline" :class="hab.tipoHabilitacion.toLowerCase()">
+                  <span v-if="hab.tipoHabilitacion" class="type-badge-inline" :class="hab.tipoHabilitacion.toLowerCase().replace(/[^a-z0-9]+/g, '-')">
                     {{ hab.tipoHabilitacion }}
                   </span>
                 </div>
@@ -129,6 +129,7 @@ const linkedSchools = computed(() => {
                 <div class="type-toggle-group">
                   <button :class="{ active: editedHab.tipoHabilitacion === 'Escolar' }" @click="editedHab.tipoHabilitacion = 'Escolar'">Escolar</button>
                   <button :class="{ active: editedHab.tipoHabilitacion === 'Remis' }" @click="editedHab.tipoHabilitacion = 'Remis'">Remis</button>
+                  <button :class="{ active: editedHab.tipoHabilitacion === 'Punto Inicial - Terminal' }" @click="editedHab.tipoHabilitacion = 'Punto Inicial - Terminal'">Punto Inicial / Terminal</button>
                 </div>
               </template>
             </div>
@@ -543,6 +544,7 @@ const linkedSchools = computed(() => {
 .type-badge-inline { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 6px; text-transform: uppercase; background: rgba(255,255,255,0.2); }
 .type-badge-inline.escolar { background: #fbbf24; color: #78350f; }
 .type-badge-inline.remis { background: #22c55e; color: white; }
+.type-badge-inline.punto-inicial-terminal { background: #6366f1; color: white; }
 
 .input-field-header { background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 8px 12px; border-radius: 10px; font-size: 18px; font-weight: 700; width: 240px; }
 .input-field-header::placeholder { color: rgba(255,255,255,0.5); }

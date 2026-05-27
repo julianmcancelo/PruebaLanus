@@ -179,6 +179,10 @@ const removeImage = (index: number) => images.value.splice(index, 1);
               :class="{ active: extractedResult.tipoHabilitacion === 'Remis' }"
               @click="extractedResult.tipoHabilitacion = 'Remis'"
             >Remis</button>
+            <button 
+              :class="{ active: extractedResult.tipoHabilitacion === 'Punto Inicial - Terminal' }"
+              @click="extractedResult.tipoHabilitacion = 'Punto Inicial - Terminal'"
+            >Punto Inicial / Terminal</button>
           </div>
         </div>
         <div class="field full-width gestdoc-field">
