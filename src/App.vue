@@ -622,7 +622,9 @@ const handleDownloadInspectionExcel = async (hab: any) => {
   const person = getLinkedPersonByHab(hab);
   const isRemis = hab.tipoHabilitacion?.toLowerCase() === 'remis';
   
-  const templatePath = '/templates/ActaInspeccionTemplate.xlsx';
+  const templatePath = isRemis 
+    ? '/templates/ActaInspeccionRemisTemplate.xlsx' 
+    : '/templates/ActaInspeccionTemplate.xlsx';
 
   try {
     const response = await fetch(templatePath);
@@ -648,21 +650,59 @@ const handleDownloadInspectionExcel = async (hab: any) => {
 
     if (!worksheet) throw new Error('No se encontró la hoja en el Excel');
 
-    // Unified Template Mapping (Works identical to Escolar)
-    worksheet.getCell('B4').value = hab.nroExpediente || '---';
-    worksheet.getCell('F4').value = hab.nroLicencia || '---';
-    
-    worksheet.getCell('B6').value = person ? `${person.surname}, ${person.names}` : (hab.titular || '---');
-    worksheet.getCell('B7').value = person?.idNumber || hab.idNumber || '---';
-    worksheet.getCell('B8').value = person?.address || '---';
-    worksheet.getCell('B9').value = hab.anioHabilitacion || new Date().getFullYear().toString();
-    worksheet.getCell('B10').value = person?.phone || hab.phone || '---';
+    if (isRemis) {
+      // Remis Template Mapping
+      worksheet.getCell('C7').value = hab.nroExpediente || '---';
+      worksheet.getCell('G8').value = hab.nroLicencia || '---';
+      
+      const titularName = person ? `${person.surname}, ${person.names}` : (hab.titular || '---');
+      const docVal = person?.idNumber || hab.idNumber || '---';
+      const addressVal = person?.address || '---';
 
-    worksheet.getCell('F6').value = hab.dominio || '---';
-    worksheet.getCell('F7').value = title?.marca || '---';
-    worksheet.getCell('F8').value = title?.modelo || '---';
-    worksheet.getCell('F9').value = title?.anioModelo || title?.anioFabricacion || '---';
-    worksheet.getCell('F10').value = isRemis ? 'REMIS' : (title?.tipo || 'TRANSPORTE DE PASAJEROS');
+      // Quien se presenta
+      worksheet.getCell('C10').value = titularName;
+      worksheet.getCell('C11').value = docVal;
+      worksheet.getCell('C12').value = addressVal;
+
+      // Datos del Titular
+      worksheet.getCell('C14').value = titularName;
+      worksheet.getCell('C15').value = docVal;
+      worksheet.getCell('C16').value = addressVal;
+
+      // Vehiculo
+      worksheet.getCell('G10').value = hab.dominio || '---';
+      worksheet.getCell('G11').value = title?.marca || '---';
+      worksheet.getCell('G12').value = title?.modelo || '---';
+      worksheet.getCell('G13').value = title?.anioModelo || title?.anioFabricacion || '---';
+      worksheet.getCell('G15').value = 'REMIS';
+      
+      // Agencia (look up from schools/agencies)
+      let agencyName = '---';
+      if (hab.idColegios && hab.idColegios.length > 0) {
+        const agency = schools.value.find(s => String(s.id) === String(hab.idColegios[0]));
+        if (agency) agencyName = agency.nombre;
+      }
+      worksheet.getCell('G16').value = agencyName;
+      
+      // Fecha
+      worksheet.getCell('H4').value = `FECHA: ${new Date().toLocaleDateString('es-AR')}`;
+    } else {
+      // Unified Template Mapping (Works identical to Escolar)
+      worksheet.getCell('B4').value = hab.nroExpediente || '---';
+      worksheet.getCell('F4').value = hab.nroLicencia || '---';
+      
+      worksheet.getCell('B6').value = person ? `${person.surname}, ${person.names}` : (hab.titular || '---');
+      worksheet.getCell('B7').value = person?.idNumber || hab.idNumber || '---';
+      worksheet.getCell('B8').value = person?.address || '---';
+      worksheet.getCell('B9').value = hab.anioHabilitacion || new Date().getFullYear().toString();
+      worksheet.getCell('B10').value = person?.phone || hab.phone || '---';
+
+      worksheet.getCell('F6').value = hab.dominio || '---';
+      worksheet.getCell('F7').value = title?.marca || '---';
+      worksheet.getCell('F8').value = title?.modelo || '---';
+      worksheet.getCell('F9').value = title?.anioModelo || title?.anioFabricacion || '---';
+      worksheet.getCell('F10').value = title?.tipo || 'TRANSPORTE DE PASAJEROS';
+    }
 
     // Generate and Download
     const buffer = await workbook.xlsx.writeBuffer();

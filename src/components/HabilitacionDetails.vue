@@ -17,14 +17,108 @@ const emit = defineEmits(['close', 'update', 'print', 'print-inspection', 'print
 const isEditing = ref(false);
 const editedHab = ref<any>(null);
 
-const estadoClass = (estado: string) => {
+const getEstados = (tipo: string) => {
+  if (tipo === 'Punto Inicial - Terminal') {
+    return [
+      'Tribunal de Faltas - Emite Informe Libre Deuda',
+      'Dir. Gral. de Movilidad y Transporte - Inspección',
+      'Dir Gral Mov y Transp - Certifica Documentación',
+      'Dir Gral Mov y Transporte - Emite Constancia',
+      'S Seguridad y Ord. Urbano - Fima Constancia',
+      'Dir Gral Mov y Transp-Entrega Constancia y Archiva'
+    ];
+  }
+  if (tipo === 'Escolar') {
+    return [
+      'Dir. Mov y Transporte - Verifica Doc. y Sellados',
+      'Tribunal de Faltas - Informe Libre Deuda',
+      'P1 Dir. Mov. y Transporte - Informe Psicotécnico',
+      'P1 Dir. Mov y Transporte - Informe Vehicular',
+      'Dir. Mov. y Transporte - Verifica Informes',
+      'Dir. Mov. y Transporte - Confecciona Resolución',
+      'S Legal y Técnica - Revisión',
+      'S Legal y Técnica - Prepara Res. para la Firma',
+      'S S Ordenamiento Urbano - Firma Resolución',
+      'S Legal y Técnica - Control Resolución',
+      'S Seguridad y Ord Urbano - Firma Resolución',
+      'S Legal y Técnica - Protocoliza Resolución',
+      'Dir Mov y Transp - Notifica, Entrega Cred. y Resol'
+    ];
+  }
+  return [
+    'Iniciado',
+    'Resolución Armada',
+    'Tribunal de Faltas',
+    'Resolución Formada',
+    'Trámite Finalizado'
+  ];
+};
+
+const estadoClass = (estado: string, tipo?: string) => {
   if (!estado) return 'iniciado';
+  const activeTipo = tipo || props.hab?.tipoHabilitacion || '';
+  if (activeTipo === 'Punto Inicial - Terminal') {
+    const idx = getEstados(activeTipo).indexOf(estado);
+    switch (idx) {
+      case 0: return 'iniciado';
+      case 1: return 'resolucion-armada';
+      case 2: return 'tribunal-faltas';
+      case 3: return 'resolucion-formada';
+      case 4: return 'firma-constancia';
+      case 5: return 'tramite-finalizado';
+      default: return 'iniciado';
+    }
+  }
+  if (activeTipo === 'Escolar') {
+    const idx = getEstados(activeTipo).indexOf(estado);
+    if (idx === 0) return 'iniciado';
+    if (idx >= 1 && idx <= 3) return 'resolucion-armada';
+    if (idx === 4) return 'tribunal-faltas';
+    if (idx >= 5 && idx <= 10) return 'resolucion-formada';
+    if (idx === 11) return 'tramite-finalizado';
+    return 'iniciado';
+  }
   switch (estado) {
     case 'Resolución Armada': return 'resolucion-armada';
     case 'Tribunal de Faltas': return 'tribunal-faltas';
     case 'Resolución Formada': return 'resolucion-formada';
     case 'Trámite Finalizado': return 'tramite-finalizado';
     default: return 'iniciado';
+  }
+};
+
+const getStepDescription = (step: string) => {
+  switch (step) {
+    case 'Iniciado': return 'Expediente ingresado';
+    case 'Resolución Armada': return 'Se armó borrador';
+    case 'Tribunal de Faltas': return 'Pasó por Tribunal';
+    case 'Resolución Formada': return 'Se firmó la resolución';
+    case 'Trámite Finalizado': return 'Trámite finalizado';
+    
+    // Punto Inicial - Terminal stages:
+    case 'Tribunal de Faltas - Emite Informe Libre Deuda': return 'Libre deuda emitido';
+    case 'Dir. Gral. de Movilidad y Transporte - Inspección': return 'Inspección de puntos aprobada';
+    case 'Dir Gral Mov y Transp - Certifica Documentación': return 'Documentación certificada';
+    case 'Dir Gral Mov y Transporte - Emite Constancia': return 'Constancia confeccionada';
+    case 'S Seguridad y Ord. Urbano - Fima Constancia': return 'Constancia firmada digitalmente';
+    case 'Dir Gral Mov y Transp-Entrega Constancia y Archiva': return 'Constancia entregada y archivada';
+    
+    // Escolar stages:
+    case 'Dir. Mov y Transporte - Verifica Doc. y Sellados': return 'Verificación de doc. y sellados';
+    case 'Tribunal de Faltas - Informe Libre Deuda': return 'Informe de libre deuda';
+    case 'P1 Dir. Mov. y Transporte - Informe Psicotécnico': return 'Informe psicotécnico aprobado';
+    case 'P1 Dir. Mov y Transporte - Informe Vehicular': return 'Informe vehicular aprobado';
+    case 'Dir. Mov. y Transporte - Verifica Informes': return 'Verificación de informes';
+    case 'Dir. Mov. y Transporte - Confecciona Resolución': return 'Confección de borrador de resolución';
+    case 'S Legal y Técnica - Revisión': return 'Revisión en Secretaría Legal y Técnica';
+    case 'S Legal y Técnica - Prepara Res. para la Firma': return 'Resolución preparada para la firma';
+    case 'S S Ordenamiento Urbano - Firma Resolución': return 'Firma de Resolución (Ordenamiento Urbano)';
+    case 'S Legal y Técnica - Control Resolución': return 'Control de resolución finalizado';
+    case 'S Seguridad y Ord Urbano - Firma Resolución': return 'Resolución firmada por el Secretario';
+    case 'S Legal y Técnica - Protocoliza Resolución': return 'Resolución protocolizada legalmente';
+    case 'Dir Mov y Transp - Notifica, Entrega Cred. y Resol': return 'Notificación, entrega de credencial y archivo';
+    
+    default: return 'Paso administrativo';
   }
 };
 
@@ -177,11 +271,9 @@ const linkedSchools = computed(() => {
             <span v-else style="display: inline-flex; align-items: center; gap: 4px;">
               Estado: 
               <select v-model="editedHab.estado" class="estado-select-header">
-                <option value="Iniciado">Iniciado</option>
-                <option value="Resolución Armada">Resolución Armada</option>
-                <option value="Tribunal de Faltas">Tribunal de Faltas</option>
-                <option value="Resolución Formada">Resolución Formada</option>
-                <option value="Trámite Finalizado">Trámite Finalizado</option>
+                <option v-for="est in getEstados(editedHab.tipoHabilitacion)" :key="est" :value="est">
+                  {{ est }}
+                </option>
               </select>
             </span>
           </div>
@@ -205,27 +297,23 @@ const linkedSchools = computed(() => {
           
           <div class="status-timeline">
             <div 
-              v-for="step in ['Iniciado', 'Resolución Armada', 'Tribunal de Faltas', 'Resolución Formada', 'Trámite Finalizado']"
+              v-for="step in getEstados(isEditing ? editedHab.tipoHabilitacion : hab.tipoHabilitacion)"
               :key="step"
               class="timeline-step"
               :class="{ 
-                'active': (isEditing ? editedHab.estado : hab.estado) === step || (!(isEditing ? editedHab.estado : hab.estado) && step === 'Iniciado'),
+                'active': (isEditing ? editedHab.estado : hab.estado) === step || (!(isEditing ? editedHab.estado : hab.estado) && step === getEstados(isEditing ? editedHab.tipoHabilitacion : hab.tipoHabilitacion)[0]),
                 'clickable': isEditing
               }"
               @click="isEditing && (editedHab.estado = step)"
             >
               <div class="step-indicator">
-                <CheckCircle2 v-if="(isEditing ? editedHab.estado : hab.estado) === step || (!(isEditing ? editedHab.estado : hab.estado) && step === 'Iniciado')" :size="16" />
+                <CheckCircle2 v-if="(isEditing ? editedHab.estado : hab.estado) === step || (!(isEditing ? editedHab.estado : hab.estado) && step === getEstados(isEditing ? editedHab.tipoHabilitacion : hab.tipoHabilitacion)[0])" :size="16" />
                 <div v-else class="step-dot"></div>
               </div>
               <div class="step-content">
                 <div class="step-title">{{ step }}</div>
                 <div class="step-desc">
-                  <span v-if="step === 'Iniciado'">Expediente ingresado</span>
-                  <span v-else-if="step === 'Resolución Armada'">Se armó borrador</span>
-                  <span v-else-if="step === 'Tribunal de Faltas'">Pasó por Tribunal</span>
-                  <span v-else-if="step === 'Resolución Formada'">Se firmó la resolución</span>
-                  <span v-else-if="step === 'Trámite Finalizado'">Trámite finalizado</span>
+                  {{ getStepDescription(step) }}
                 </div>
               </div>
             </div>

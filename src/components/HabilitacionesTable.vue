@@ -34,8 +34,66 @@ const stats = computed(() => {
   return { all, gestdocPending, tribunal, finalized };
 });
 
-const estadoClass = (estado: string) => {
+const getEstados = (tipo: string) => {
+  if (tipo === 'Punto Inicial - Terminal') {
+    return [
+      'Tribunal de Faltas - Emite Informe Libre Deuda',
+      'Dir. Gral. de Movilidad y Transporte - Inspección',
+      'Dir Gral Mov y Transp - Certifica Documentación',
+      'Dir Gral Mov y Transporte - Emite Constancia',
+      'S Seguridad y Ord. Urbano - Fima Constancia',
+      'Dir Gral Mov y Transp-Entrega Constancia y Archiva'
+    ];
+  }
+  if (tipo === 'Escolar') {
+    return [
+      'Dir. Mov y Transporte - Verifica Doc. y Sellados',
+      'Tribunal de Faltas - Informe Libre Deuda',
+      'P1 Dir. Mov. y Transporte - Informe Psicotécnico',
+      'P1 Dir. Mov y Transporte - Informe Vehicular',
+      'Dir. Mov. y Transporte - Verifica Informes',
+      'Dir. Mov. y Transporte - Confecciona Resolución',
+      'S Legal y Técnica - Revisión',
+      'S Legal y Técnica - Prepara Res. para la Firma',
+      'S S Ordenamiento Urbano - Firma Resolución',
+      'S Legal y Técnica - Control Resolución',
+      'S Seguridad y Ord Urbano - Firma Resolución',
+      'S Legal y Técnica - Protocoliza Resolución',
+      'Dir Mov y Transp - Notifica, Entrega Cred. y Resol'
+    ];
+  }
+  return [
+    'Iniciado',
+    'Resolución Armada',
+    'Tribunal de Faltas',
+    'Resolución Formada',
+    'Trámite Finalizado'
+  ];
+};
+
+const estadoClass = (estado: string, tipo?: string) => {
   if (!estado) return 'iniciado';
+  if (tipo === 'Punto Inicial - Terminal') {
+    const idx = getEstados(tipo).indexOf(estado);
+    switch (idx) {
+      case 0: return 'iniciado';
+      case 1: return 'resolucion-armada';
+      case 2: return 'tribunal-faltas';
+      case 3: return 'resolucion-formada';
+      case 4: return 'firma-constancia';
+      case 5: return 'tramite-finalizado';
+      default: return 'iniciado';
+    }
+  }
+  if (tipo === 'Escolar') {
+    const idx = getEstados(tipo).indexOf(estado);
+    if (idx === 0) return 'iniciado';
+    if (idx >= 1 && idx <= 3) return 'resolucion-armada';
+    if (idx === 4) return 'tribunal-faltas';
+    if (idx >= 5 && idx <= 10) return 'resolucion-formada';
+    if (idx === 11) return 'tramite-finalizado';
+    return 'iniciado';
+  }
   switch (estado) {
     case 'Resolución Armada': return 'resolucion-armada';
     case 'Tribunal de Faltas': return 'tribunal-faltas';
@@ -45,20 +103,37 @@ const estadoClass = (estado: string) => {
   }
 };
 
-const getProgressPercentage = (estado: string) => {
+const getProgressPercentage = (estado: string, tipo?: string) => {
   if (!estado) return 20;
-  switch (estado) {
-    case 'Iniciado': return 20;
-    case 'Resolución Armada': return 45;
-    case 'Tribunal de Faltas': return 70;
-    case 'Resolución Formada': return 85;
-    case 'Trámite Finalizado': return 100;
-    default: return 20;
-  }
+  const estados = getEstados(tipo || '');
+  const idx = estados.indexOf(estado);
+  if (idx === -1) return 20;
+  return Math.round(((idx + 1) / estados.length) * 100);
 };
 
-const getProgressColor = (estado: string) => {
+const getProgressColor = (estado: string, tipo?: string) => {
   if (!estado) return '#64748b'; // slate
+  if (tipo === 'Punto Inicial - Terminal') {
+    const idx = getEstados(tipo).indexOf(estado);
+    switch (idx) {
+      case 0: return '#64748b'; // slate
+      case 1: return '#eab308'; // yellow
+      case 2: return '#f97316'; // orange
+      case 3: return '#6366f1'; // indigo
+      case 4: return '#14b8a6'; // teal
+      case 5: return '#10b981'; // emerald
+      default: return '#64748b';
+    }
+  }
+  if (tipo === 'Escolar') {
+    const idx = getEstados(tipo).indexOf(estado);
+    if (idx === 0) return '#64748b'; // slate
+    if (idx >= 1 && idx <= 3) return '#eab308'; // yellow
+    if (idx === 4) return '#6366f1'; // indigo
+    if (idx >= 5 && idx <= 10) return '#14b8a6'; // teal
+    if (idx === 11) return '#10b981'; // emerald
+    return '#64748b';
+  }
   switch (estado) {
     case 'Iniciado': return '#64748b'; // slate
     case 'Resolución Armada': return '#f97316'; // orange
@@ -219,17 +294,15 @@ const formatHabilitacionDate = (timestamp: any) => {
             <td>
               <div class="estado-cell-wrapper">
                 <select 
-                  :value="hab.estado || 'Iniciado'" 
+                  :value="hab.estado || (hab.tipoHabilitacion === 'Punto Inicial - Terminal' ? 'Tribunal de Faltas - Emite Informe Libre Deuda' : 'Iniciado')" 
                   @change="emit('update-estado', { hab, estado: ($event.target as HTMLSelectElement).value })"
                   @click.stop
                   class="estado-select"
-                  :class="estadoClass(hab.estado)"
+                  :class="estadoClass(hab.estado, hab.tipoHabilitacion)"
                 >
-                  <option value="Iniciado">Iniciado</option>
-                  <option value="Resolución Armada">Resolución Armada</option>
-                  <option value="Tribunal de Faltas">Tribunal de Faltas</option>
-                  <option value="Resolución Formada">Resolución Formada</option>
-                  <option value="Trámite Finalizado">Trámite Finalizado</option>
+                  <option v-for="est in getEstados(hab.tipoHabilitacion)" :key="est" :value="est">
+                    {{ est }}
+                  </option>
                 </select>
                 
                 <!-- Dynamic Pipeline Progress Bar -->
@@ -238,13 +311,13 @@ const formatHabilitacionDate = (timestamp: any) => {
                     <div 
                       class="progress-fill" 
                       :style="{ 
-                        width: getProgressPercentage(hab.estado) + '%',
-                        backgroundColor: getProgressColor(hab.estado),
-                        boxShadow: `0 0 8px ${getProgressColor(hab.estado)}80`
+                        width: getProgressPercentage(hab.estado, hab.tipoHabilitacion) + '%',
+                        backgroundColor: getProgressColor(hab.estado, hab.tipoHabilitacion),
+                        boxShadow: `0 0 8px ${getProgressColor(hab.estado, hab.tipoHabilitacion)}80`
                       }"
                     ></div>
                   </div>
-                  <span class="progress-text">{{ getProgressPercentage(hab.estado) }}% Completado</span>
+                  <span class="progress-text">{{ getProgressPercentage(hab.estado, hab.tipoHabilitacion) }}% Completado</span>
                 </div>
               </div>
             </td>
