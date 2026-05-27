@@ -646,6 +646,14 @@ const handleDownloadInspectionExcel = async (hab: any) => {
 
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(arrayBuffer);
+
+    if (isRemis) {
+      // Programmatically remove secondary sheets to prevent XML validation issues caused by Google Sheets metadata/formulas
+      while (workbook.worksheets.length > 1) {
+        workbook.removeWorksheet(workbook.worksheets[1].id);
+      }
+    }
+
     const worksheet = workbook.worksheets[0];
 
     if (!worksheet) throw new Error('No se encontró la hoja en el Excel');
