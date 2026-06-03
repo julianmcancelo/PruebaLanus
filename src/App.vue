@@ -616,26 +616,19 @@ const handlePrintBlankInspection = (hab: any) => {
   generateInspectionPDF(blankInspection, title, hab);
 };
 
-
-
 const handleDownloadInspectionExcel = async (hab: any) => {
   const title = getLinkedTitleByHab(hab.dominio);
   const person = getLinkedPersonByHab(hab);
   const isRemis = hab.tipoHabilitacion?.toLowerCase() === 'remis';
   
   const templatePath = isRemis 
-    ? '/templates/ActaInspeccionRemisTemplate.xlsx' 
+    ? '/templates/ActaInspeccionRemisTemplate_Clean.xlsx'
     : '/templates/ActaInspeccionTemplate.xlsx';
 
   try {
     const response = await fetch(templatePath);
     if (!response.ok) throw new Error('No se pudo cargar la plantilla de Excel desde el servidor.');
     
-    const contentType = response.headers.get('content-type') || '';
-    if (contentType.includes('text/html')) {
-      throw new Error('La plantilla cargada es una página HTML (posible error 404 del servidor). Verifique que el archivo exista en public/templates/.');
-    }
-
     const arrayBuffer = await response.arrayBuffer();
     
     // Validar firma binaria ZIP ('PK') para asegurar que es un XLSX real
@@ -644,16 +637,10 @@ const handleDownloadInspectionExcel = async (hab: any) => {
       throw new Error('El archivo descargado no es un documento de Excel válido. Posible error de enrutamiento en el servidor.');
     }
 
-    const workbook = new ExcelJS.Workbook();
+    const ExcelJS = await import('exceljs');
+    const workbook = new (ExcelJS.default || ExcelJS).Workbook();
     await workbook.xlsx.load(arrayBuffer);
-
-    if (isRemis) {
-      // Programmatically remove secondary sheets to prevent XML validation issues caused by Google Sheets metadata/formulas
-      while (workbook.worksheets.length > 1) {
-        workbook.removeWorksheet(workbook.worksheets[1].id);
-      }
-    }
-
+    
     const worksheet = workbook.worksheets[0];
 
     if (!worksheet) throw new Error('No se encontró la hoja en el Excel');
@@ -682,6 +669,7 @@ const handleDownloadInspectionExcel = async (hab: any) => {
       worksheet.getCell('G11').value = title?.marca || '---';
       worksheet.getCell('G12').value = title?.modelo || '---';
       worksheet.getCell('G13').value = title?.anioModelo || title?.anioFabricacion || '---';
+      worksheet.getCell('G14').value = title?.fechaInscripcion || '---';
       worksheet.getCell('G15').value = 'REMIS';
       
       // Agencia (look up from schools/agencies)
@@ -694,6 +682,44 @@ const handleDownloadInspectionExcel = async (hab: any) => {
       
       // Fecha
       worksheet.getCell('H4').value = `FECHA: ${new Date().toLocaleDateString('es-AR')}`;
+
+      // Checklist Mapping (if an inspection exists for this dominio)
+      const lastInsp = inspections.value
+        .filter(i => i.dominio === hab.dominio)
+        .sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime())[0];
+
+      if (lastInsp && lastInsp.checklist) {
+        // We map common keywords to the Remis Excel rows (21 to 30)
+        const mapping = [
+          { row: 21, keywords: ['luces', 'faro', 'giro'] },
+          { row: 22, keywords: ['freno', 'pastilla'] },
+          { row: 23, keywords: ['neumatico', 'rueda', 'cubierta'] },
+          { row: 24, keywords: ['limpia', 'parabrisa'] },
+          { row: 25, keywords: ['espejo', 'retrovisor'] },
+          { row: 26, keywords: ['instrumental', 'veloci', 'tablero'] },
+          { row: 27, keywords: ['cinturon', 'seguridad'] },
+          { row: 28, keywords: ['matafuego', 'extintor'] },
+          { row: 29, keywords: ['kit', 'botiquin', 'emergencia'] },
+          { row: 30, keywords: ['mampara', 'divisoria'] }
+        ];
+
+        mapping.forEach(m => {
+          const item = lastInsp.checklist.find((cli: any) => 
+            m.keywords.some(kw => cli.label.toLowerCase().includes(kw))
+          );
+          if (item) {
+            const status = item.status?.toLowerCase();
+            if (status === 'bien') worksheet.getCell(`F${m.row}`).value = 'X';
+            else if (status === 'regul' || status === 'regular') worksheet.getCell(`G${m.row}`).value = 'X';
+            else if (status === 'malo' || status === 'mal') worksheet.getCell(`H${m.row}`).value = 'X';
+            
+            if (item.motivo) worksheet.getCell(`I${m.row}`).value = item.motivo;
+          }
+        });
+        
+        if (lastInsp.observaciones) worksheet.getCell('C31').value = lastInsp.observaciones;
+      }
+
     } else {
       // Unified Template Mapping (Works identical to Escolar)
       worksheet.getCell('B4').value = hab.nroExpediente || '---';
