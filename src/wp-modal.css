@@ -1,0 +1,448 @@
+/* ========== WP-STYLE MODAL SHARED STYLES ========== */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  z-index: 100;
+  padding: 30px 20px;
+  overflow-y: auto;
+}
+
+.modal-content {
+  width: 100%;
+  max-width: 700px;
+  display: flex;
+  flex-direction: column;
+  max-height: none;
+  background: #fff;
+  border-radius: 0;
+  border: 1px solid #c3c4c7;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  overflow: visible;
+  animation: wpModalIn 0.15s ease;
+}
+
+@keyframes wpModalIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---- Header ---- */
+.modal-header {
+  background: #fff;
+  color: #1d2327;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid #c3c4c7;
+}
+
+.header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.header-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.modal-header .car-icon,
+.modal-header .avatar-icon {
+  background: #f0f6fc;
+  color: #2271b1;
+  padding: 10px;
+  border-radius: 4px;
+  backdrop-filter: none;
+  display: flex;
+}
+
+.modal-header .person-photo {
+  width: 48px;
+  height: 48px;
+  border-radius: 4px;
+  object-fit: cover;
+  border: 1px solid #c3c4c7;
+}
+
+.modal-header .car-info h2,
+.modal-header .person-info h2 {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0;
+  margin: 0;
+  color: #1d2327;
+}
+
+.modal-header .car-type,
+.modal-header .person-type {
+  font-size: 12px;
+  opacity: 1;
+  color: #50575e;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.btn-icon {
+  background: #f6f7f7;
+  border: 1px solid #c3c4c7;
+  color: #2271b1;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition: background 0.1s, border-color 0.1s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+}
+
+.btn-icon:hover {
+  background: #f0f0f1;
+  border-color: #2271b1;
+}
+
+.btn-icon.close {
+  color: #50575e;
+}
+
+.btn-icon.close:hover {
+  background: #fcf0f1;
+  border-color: #d63638;
+  color: #d63638;
+}
+
+/* ---- Quick Info / Chips ---- */
+.quick-info {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.info-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: #f0f6fc;
+  border: 1px solid #c3c4c7;
+  border-radius: 4px;
+  font-size: 12px;
+  backdrop-filter: none;
+  color: #2271b1;
+}
+
+.info-chip strong { font-weight: 600; }
+.info-chip.owner,
+.info-chip.vehicles { background: #edfaef; border-color: #68de7c; color: #00a32a; }
+
+/* ---- Body ---- */
+.modal-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.data-section {
+  background: #fff;
+  border-radius: 0;
+  padding: 0;
+  border: 1px solid #c3c4c7;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.data-section .section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0;
+  padding: 8px 12px;
+  border-bottom: 1px solid #c3c4c7;
+  background: #f6f7f7;
+}
+
+.section-icon {
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+}
+
+.section-icon.indigo { background: #f0f6fc; color: #2271b1; }
+.section-icon.purple { background: #f0f6fc; color: #2271b1; }
+.section-icon.blue { background: #f0f6fc; color: #2271b1; }
+.section-icon.green { background: #edfaef; color: #00a32a; }
+
+.data-section .section-header h3 {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1d2327;
+  text-transform: none;
+  letter-spacing: 0;
+  margin: 0;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  padding: 0;
+}
+
+.detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f0f0f1;
+  border-right: 1px solid #f0f0f1;
+}
+
+.detail-item:nth-child(2n) {
+  border-right: none;
+}
+
+.detail-item:last-child,
+.detail-item:nth-last-child(2):nth-child(odd) {
+  border-bottom: none;
+}
+
+.detail-item.full-width {
+  grid-column: span 2;
+  border-right: none;
+}
+
+.detail-item label {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #787c82;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.detail-item span {
+  font-size: 13px;
+  font-weight: 400;
+  color: #1d2327;
+}
+
+.detail-item .mono {
+  font-family: monospace;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+/* ---- Linked Card ---- */
+.linked-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fff;
+  border: 1px solid #c3c4c7;
+  padding: 10px 12px;
+  border-radius: 0;
+  box-shadow: none;
+  margin: 12px;
+}
+
+.linked-card.success {
+  border-left: 4px solid #00a32a;
+}
+
+.linked-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 4px;
+  background: #2271b1;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.linked-content { flex: 1; min-width: 0; }
+.linked-name { font-size: 13px; font-weight: 600; color: #1d2327; margin-bottom: 2px; }
+.linked-meta { display: flex; gap: 10px; flex-wrap: wrap; }
+.meta-item { display: flex; align-items: center; gap: 3px; font-size: 12px; color: #50575e; font-weight: 400; }
+
+.linked-badge {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  background: #edfaef;
+  color: #00a32a;
+  flex-shrink: 0;
+  border: 1px solid #68de7c;
+}
+
+.linked-badge.success {
+  background: #edfaef;
+  color: #00a32a;
+}
+
+/* ---- Vehicles List ---- */
+.vehicles-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+}
+
+.vehicle-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: white;
+  padding: 8px 12px;
+  border-radius: 0;
+  border-bottom: 1px solid #f0f0f1;
+}
+
+.vehicle-item:last-child {
+  border-bottom: none;
+}
+
+.vehicle-plate {
+  background: #1d2327;
+  color: white;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  font-family: monospace;
+}
+
+.vehicle-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.vehicle-name {
+  font-size: 13px;
+  font-weight: 400;
+  color: #1d2327;
+}
+
+.vehicle-type {
+  font-size: 11px;
+  color: #787c82;
+}
+
+/* ---- Footer ---- */
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 20px;
+  background: #f6f7f7;
+  border-top: 1px solid #c3c4c7;
+  gap: 8px;
+}
+
+.footer-section { display: flex; gap: 8px; }
+
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: 1px solid #c3c4c7;
+  background: #f6f7f7;
+  color: #2271b1;
+  font-size: 13px;
+  font-weight: 400;
+  cursor: pointer;
+  transition: background 0.1s, border-color 0.1s;
+  height: 30px;
+}
+
+.action-btn:hover {
+  border-color: #2271b1;
+  background: #f0f0f1;
+}
+
+.action-btn.save {
+  background: #2271b1;
+  color: white;
+  border-color: #2271b1;
+}
+
+.action-btn.save:hover {
+  background: #135e96;
+  border-color: #135e96;
+}
+
+.action-btn.close-btn {
+  background: #f6f7f7;
+  color: #50575e;
+  border-color: #c3c4c7;
+}
+
+.action-btn.close-btn:hover {
+  border-color: #787c82;
+  color: #1d2327;
+}
+
+/* ---- Input Fields in modals ---- */
+.modal-content .input-field {
+  width: 100%;
+  padding: 0 8px;
+  background: white;
+  border: 1px solid #8c8f94;
+  border-radius: 4px;
+  color: #1d2327;
+  font-size: 13px;
+  font-weight: 400;
+  outline: none;
+  transition: border-color 0.1s, box-shadow 0.1s;
+  height: 30px;
+  line-height: 2;
+}
+
+.modal-content .input-field:focus {
+  border-color: #2271b1;
+  box-shadow: 0 0 0 1px #2271b1;
+}
+
+.plate-input {
+  font-family: monospace;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 768px) {
+  .modal-content {
+    max-width: 100%;
+  }
+
+  .detail-grid { grid-template-columns: 1fr; }
+  .detail-item.full-width { grid-column: span 1; }
+  .detail-item { border-right: none; }
+}
