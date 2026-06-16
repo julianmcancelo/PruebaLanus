@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
-import { X, FileText, User, Car, Hash, Save, Edit2, Calendar, School, Mail, Phone, AlertTriangle, Printer, ClipboardCheck, FileDown, FileSignature, Gavel, MapPin, Clock, CheckCircle2, AlertCircle, Shield, Users } from 'lucide-vue-next';
+import { X, FileText, User, Car, Hash, Save, Edit2, Calendar, School, Mail, Phone, AlertTriangle, Printer, ClipboardCheck, FileDown, FileSignature, Gavel, MapPin, Clock, CheckCircle2, AlertCircle, Shield, Users, UploadCloud, Trash2, ExternalLink } from 'lucide-vue-next';
+import { uploadResolucion, deleteResolucion } from '../services/dbService';
 
 const props = defineProps<{
   hab: any | null,
@@ -180,6 +181,73 @@ const handleSave = () => {
   isEditing.value = false;
 };
 
+const isUploading = ref(false);
+const fileInput = ref<HTMLInputElement | null>(null);
+
+const triggerFileUpload = () => {
+  fileInput.value?.click();
+};
+
+const handleFileUpload = async (event: Event) => {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (!file) return;
+  
+  isUploading.value = true;
+  try {
+    const res = await uploadResolucion(props.hab.id, file);
+    const updatedHab = { 
+      ...props.hab, 
+      resolucionFile: {
+        name: res.name,
+        url: res.url,
+        storagePath: `resoluciones/resolucion_${props.hab.id}_${Date.now()}.${file.name.split('.').pop()}`, // This is a bit of a hack since dbService generates it inside, but dbService updates it. So we can just fetch or pass the returned object.
+        // Actually, dbService already updates it in Firestore, but we need to update the UI instantly. Let's just emit the update.
+        // Wait, dbService.updateHabilitacion does it. The listener in App.vue might pick it up automatically if we are using onSnapshot. 
+        // We use Dexie/Firestore mix. Let's just emit it.
+      }
+    };
+    updatedHab.resolucionFile.storagePath = `resoluciones/` + res.url.split('resoluciones%2F')[1]?.split('?')[0]; // best effort extract
+    
+    emit('update', updatedHab);
+  } catch(error) {
+    console.error(error);
+    alert('Error al subir el archivo. Revisa los permisos de Firebase Storage.');
+  } finally {
+    isUploading.value = false;
+    if (target) target.value = ''; // reset
+  }
+};
+
+const handleDeleteResolucion = async () => {
+  if (!confirm('¿Seguro que deseas eliminar la resolución adjunta?')) return;
+  try {
+    await deleteResolucion(props.hab.id, props.hab.resolucionFile.storagePath);
+    const updatedHab = { ...props.hab };
+    delete updatedHab.resolucionFile;
+    emit('update', updatedHab);
+  } catch(error) {
+    console.error(error);
+    alert('Error al borrar el archivo');
+  }
+};
+
+const sendEmail = () => {
+  const email = props.hab.email || props.linkedPerson?.email;
+  if (!email) {
+    alert('El titular no tiene un correo electrónico registrado. Por favor, editá el titular y agregá uno.');
+    return;
+  }
+  const subject = encodeURIComponent(`Resolución de Habilitación - Exp ${props.hab.nroExpediente || ''}`);
+  const body = encodeURIComponent(
+    `Hola ${props.linkedPerson?.surname || props.hab.titular || ''},\n\n` +
+    `Adjuntamos el enlace para descargar la Resolución de su habilitación correspondiente al dominio ${props.hab.dominio || ''}:\n\n` +
+    `${props.hab.resolucionFile.url}\n\n` +
+    `Saludos cordiales,\nDirección de Movilidad y Transporte`
+  );
+  window.location.href = `mailto:${email}?subject=${subject}&body=${body}`;
+};
+
 const habStatus = computed(() => {
   const issues: string[] = [];
   if (!props.hab.email) issues.push('Email');
@@ -317,6 +385,47 @@ const linkedSchools = computed(() => {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+
+        <!-- Section: Resolución Adjunta -->
+        <div class="data-section">
+          <div class="section-header">
+            <div class="section-icon blue">
+              <FileSignature :size="18" />
+            </div>
+            <h3>Resolución Adjunta</h3>
+          </div>
+          
+          <div v-if="hab.resolucionFile" class="linked-card success" style="align-items: center;">
+            <div class="linked-icon" style="background: rgba(16, 185, 129, 0.1); color: #10b981; padding: 12px; border-radius: 12px;">
+              <FileText :size="24" />
+            </div>
+            <div class="linked-content" style="flex: 1;">
+              <div class="linked-name">{{ hab.resolucionFile.name }}</div>
+              <div class="linked-meta">
+                <span class="meta-item"><Clock :size="12" /> Subido el {{ new Date(hab.resolucionFile.uploadedAt).toLocaleDateString() }}</span>
+              </div>
+            </div>
+            <div class="actions" style="display: flex; gap: 8px;">
+              <a :href="hab.resolucionFile.url" target="_blank" class="action-btn-small primary" title="Ver archivo">
+                <ExternalLink :size="16" />
+              </a>
+              <button @click="sendEmail" class="action-btn-small" style="background: #e0e7ff; color: #4338ca; border: none; padding: 8px; border-radius: 8px; cursor: pointer;" title="Enviar por Email">
+                <Mail :size="16" />
+              </button>
+              <button @click="handleDeleteResolucion" class="action-btn-small danger" style="background: #fee2e2; color: #dc2626; border: none; padding: 8px; border-radius: 8px; cursor: pointer;" title="Eliminar archivo">
+                <Trash2 :size="16" />
+              </button>
+            </div>
+          </div>
+          
+          <div v-else class="unlinked-card" style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; border: 2px dashed #cbd5e1; background: #f8fafc; cursor: pointer;" @click="triggerFileUpload">
+            <input type="file" ref="fileInput" @change="handleFileUpload" accept=".pdf,.doc,.docx,image/*" style="display: none" />
+            <UploadCloud :size="32" style="color: #64748b; margin-bottom: 8px;" />
+            <div style="font-weight: 600; color: #334155;">Subir Resolución</div>
+            <small v-if="!isUploading" style="color: #94a3b8; text-align: center;">Hacé clic acá para adjuntar el archivo final (PDF, Word o imagen)</small>
+            <small v-else style="color: #3b82f6; font-weight: 600;">Subiendo archivo, por favor esperá...</small>
           </div>
         </div>
 

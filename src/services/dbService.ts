@@ -1,4 +1,4 @@
-import { db } from '../firebase';
+import { db, storage } from '../firebase';
 import { 
   collection, 
   addDoc, 
@@ -13,6 +13,7 @@ import {
   serverTimestamp,
   setDoc
 } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import type { DniData } from './dniService';
 import Dexie, { type Table } from 'dexie';
 
@@ -270,3 +271,34 @@ export async function migrateToFirestore(backupData: any) {
   }
 }
 
+// FILE STORAGE (Resoluciones)
+export async function uploadResolucion(habId: string, file: File): Promise<{ url: string, name: string }> {
+  const fileExt = file.name.split('.').pop();
+  const fileName = `resolucion_${habId}_${Date.now()}.${fileExt}`;
+  const storageRef = ref(storage, `resoluciones/${fileName}`);
+  
+  await uploadBytes(storageRef, file);
+  const url = await getDownloadURL(storageRef);
+  
+  // Update the habilitacion record with the file info
+  await updateHabilitacion(habId, {
+    resolucionFile: {
+      name: file.name,
+      url: url,
+      storagePath: `resoluciones/${fileName}`,
+      uploadedAt: new Date().toISOString()
+    }
+  });
+  
+  return { url, name: file.name };
+}
+
+export async function deleteResolucion(habId: string, storagePath: string): Promise<void> {
+  const storageRef = ref(storage, storagePath);
+  await deleteObject(storageRef);
+  
+  // Remove file info from habilitacion
+  await updateHabilitacion(habId, {
+    resolucionFile: null
+  });
+}
